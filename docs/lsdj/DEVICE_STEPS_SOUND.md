@@ -5,12 +5,12 @@ What changed, and why, is in `docs/lsdj/SOUND_TIMING.md`. The status bar and the
 
 Play a song with drums or a fast arpeggio: the difference is in how even the beat is.
 
-1. **PLAY** starts LSDj; **PLAY** again plays the song. **GLO** opens the menu: STATUS BAR to ON, GLO closes it.
+1. **PLAY** starts LSDj; **PLAY** again plays the song. **ENV** opens the menu: STATUS BAR to ON, ENV closes it.
    Expect on the status bar: `FPS 59.7`, a `CPU` clearly lower than the 90 % it was, and `GAPS 0` on the right.
 
 2. **Listen for half a minute.** Expect an even beat, with no stutter.
 
-3. In the menu (GLO), SOUND to PER FRAME is the old sound (the status bar shows `OLD`); IN FRAME switches back.
+3. In the menu (ENV), SOUND to PER FRAME is the old sound (the status bar shows `OLD`); IN FRAME switches back.
    Expect the old sound to be the uneven one. Switch a few times while the song plays.
 
 4. In the menu, WAIT LOOP to RUN runs LSDj's wait loop again (the status bar shows `SPIN`); SKIP switches back.

@@ -101,6 +101,82 @@ static void test_pad(void)
         CHECK(!(white & (DMGO_NOTE_A | DMGO_NOTE_B)));
         CHECK(lsdj_pad_ab(0, white, map, DMGO_NOTE_A, DMGO_NOTE_B) == 0xFF);   /* steps are no Game Boy key */
     }
+    /* KEYBOARD mode (lsdj.c: no note key for A and B): the keyboard is no Game Boy key, the buttons still are */
+    CHECK(lsdj_pad_ab(0, 0x07FFFFFFu, map, 0, 0) == 0xFF);
+    CHECK(lsdj_pad_ab(map[3], 0x07FFFFFFu, map, 0, 0) == (uint8_t)~JOYPAD_START);
+    /* D-PAD mode: OPLBend Tracker's layout, key by key (note bit 0 = F3) */
+    CHECK(lsdj_pad_dpad(0, 0, map) == 0xFF);
+    CHECK(lsdj_pad_dpad(0, 1u << 0, map) == (uint8_t)~JOYPAD_LEFT);     /* F3 */
+    CHECK(lsdj_pad_dpad(0, 1u << 1, map) == (uint8_t)~JOYPAD_UP);       /* F#3 */
+    CHECK(lsdj_pad_dpad(0, 1u << 2, map) == (uint8_t)~JOYPAD_DOWN);     /* G3 */
+    CHECK(lsdj_pad_dpad(0, 1u << 4, map) == (uint8_t)~JOYPAD_RIGHT);    /* A3 */
+    CHECK(lsdj_pad_dpad(0, 1u << 6, map) == (uint8_t)~JOYPAD_SELECT);   /* B3 */
+    CHECK(lsdj_pad_dpad(0, 1u << 7, map) == (uint8_t)~JOYPAD_SELECT);   /* C4 */
+    CHECK(lsdj_pad_dpad(0, 1u << 21, map) == (uint8_t)~JOYPAD_SELECT);  /* D5 */
+    CHECK(lsdj_pad_dpad(0, 1u << 22, map) == (uint8_t)~JOYPAD_START);   /* D#5 */
+    CHECK(lsdj_pad_dpad(0, 1u << 23, map) == (uint8_t)~JOYPAD_B);       /* E5 */
+    CHECK(lsdj_pad_dpad(0, 1u << 24, map) == (uint8_t)~JOYPAD_B);       /* F5 */
+    CHECK(lsdj_pad_dpad(0, 1u << 25, map) == (uint8_t)~JOYPAD_A);       /* F#5: A right of B */
+    CHECK(lsdj_pad_dpad(0, (1u << 3) | (1u << 5) | 0x1FFF00u | (1u << 26), map) == 0xFF);   /* the others: nothing */
+    for (i = 2; i < 8u; i++)
+        CHECK(lsdj_pad_dpad(map[i], 0, map) == (uint8_t)~(1u << i));  /* the buttons still work */
+    {   /* the cross held: a press at once, none until frame 20, then one every 4 frames, each down 2 frames */
+        lsdj_rep_t r;
+        uint32_t f, downs = 0, was = 0, first_rep = 0, run = 0, gap = LSDJ_REP_DOWN;
+        memset(&r, 0, sizeof r);
+        for (f = 0; f < 40u; f++) {
+            uint8_t p = lsdj_rep_frame(&r, (uint8_t)~(JOYPAD_RIGHT | JOYPAD_A), JOYPAD_RIGHT);
+            uint32_t now = !(p & JOYPAD_RIGHT);
+            CHECK(!(p & JOYPAD_A));                                   /* A held stays down */
+            if (now && !was) {
+                downs++;
+                if (downs == 2)
+                    first_rep = f;
+            }
+            if (now && !was)                                          /* up as long as down before it */
+                CHECK(gap >= LSDJ_REP_DOWN);
+            run = now ? run + 1u : 0;
+            gap = now ? 0 : gap + 1u;
+            CHECK(run <= LSDJ_REP_DOWN);                              /* down 2 frames, never more */
+            was = now;
+        }
+        CHECK(first_rep == LSDJ_REP_DELAY && downs == 1u + (40u - LSDJ_REP_DELAY) / LSDJ_REP_RATE);
+        CHECK(lsdj_rep_frame(&r, 0xFF, 0) == 0xFF && r.held[0] == 0);   /* let go: from the start again */
+        CHECK(lsdj_rep_frame(&r, (uint8_t)~JOYPAD_RIGHT, JOYPAD_RIGHT) == (uint8_t)~JOYPAD_RIGHT);
+        CHECK(lsdj_rep_frame(&r, (uint8_t)~JOYPAD_LEFT, 0) == (uint8_t)~JOYPAD_LEFT);   /* a button's: as held */
+    }
+}
+
+/* the zoomed view (OPLBend Tracker's 4 COL): LSDj's cursor found as an inverted cell; the view follows it a row at a
+ * time */
+static void test_zoom_view(void)
+{
+    static uint8_t f[LSDJ_H][LSDJ_W];
+    uint32_t lo = 0, hi = 0, y, x;
+    CHECK(LSDJ_ZHEAD * LSDJ_ZHEAD_H + LSDJ_ZROWS * LSDJ_ZROW_H == 240u && LSDJ_ZTOP_MAX == 8u);
+    memset(f, 0, sizeof f);
+    for (y = 0; y < 8u; y++)                  /* letters: a tile with a few dark pixels, and the row numbers' boxes */
+        for (x = 0; x < 16u; x++) {
+            f[8u * 4u + y][x] = 3;            /* (columns 0 and 1: never the cursor) */
+            if (x < 5u)
+                f[8u * 6u + y][8u * 3u + x] = 3;   /* 40 of 64 in tile column 3 */
+        }
+    CHECK(lsdj_cursor_rows(f, &lo, &hi) && lo == 6u && hi == 6u);
+    for (y = 0; y < 8u; y++)
+        f[8u * 6u + y][8u * 3u + 4u] = 0;     /* 32 of 64: a letter, not the cursor */
+    CHECK(!lsdj_cursor_rows(f, &lo, &hi));
+    for (y = 8u * 9u; y < 8u * 11u; y++)      /* tile rows 9 and 10 (a selection) */
+        for (x = 56u; x < 72u; x++)
+            f[y][x] = 3;
+    for (y = 0; y < 8u; y++)                  /* (right of LSDJ_ZW: not looked at) */
+        for (x = 120u; x < 128u; x++)
+            f[8u * 16u + y][x] = 3;
+    CHECK(lsdj_cursor_rows(f, &lo, &hi) && lo == 9u && hi == 10u);
+    CHECK(lsdj_zoom_top(2, 2, 2) == 2u && lsdj_zoom_top(2, 11, 11) == 2u);   /* in the view (2 .. 11): it stays */
+    CHECK(lsdj_zoom_top(2, 12, 12) == 3u && lsdj_zoom_top(3, 17, 17) == 8u);  /* below: up as far as it takes */
+    CHECK(lsdj_zoom_top(8, 7, 7) == 7u && lsdj_zoom_top(8, 2, 2) == 2u);     /* above */
+    CHECK(lsdj_zoom_top(5, 2, 17) == 5u);                                     /* more than a view high: stays */
+    CHECK(lsdj_zoom_top(5, 9, 10) == 5u);
 }
 
 static uint32_t presses(lsdj_knobs_t *k, uint8_t key, uint32_t frames)   /* times `key` goes down in that many frames */
@@ -403,7 +479,11 @@ static void test_menu(void)
     uint8_t b[2], i;
     char label[16], value[16];
     memset(&m, 0, sizeof m);
-    CHECK(m.set.theme == LSDJ_THEME_DMG && !m.set.bar && !m.set.off);   /* zero: DMG green, no bar, all options on */
+    b[0] = b[1] = 0;
+    lsdj_set_unpack(&m.set, b);
+    CHECK(m.set.theme == LSDJ_THEME_DMG && m.set.zoom && !m.set.bar && !m.set.off);   /* 0, 0: DMG green, zoom on,
+                                                                                         * no bar, all options on */
+    b[0] = b[1] = 0xFF;
     lsdj_set_pack(&m.set, b);
     CHECK(b[0] == 0 && b[1] == 0);
     for (i = 0; i < LSDJ_NMI; i++) {                            /* every line has a label and a value */
@@ -419,6 +499,14 @@ static void test_menu(void)
     CHECK(lsdj_menu_key(&m, JOYPAD_A) && m.set.theme == LSDJ_THEME_DMG);   /* A: the next value too */
     CHECK(!lsdj_menu_key(&m, JOYPAD_UP) && m.item == LSDJ_NMI - 1);       /* UP from the first: the last line */
     CHECK(!lsdj_menu_key(&m, JOYPAD_DOWN) && m.item == 0);
+    lsdj_menu_line(&m, LSDJ_MI_ZOOM, label, value);
+    CHECK(!strcmp(label, "ZOOM") && !strcmp(value, "ON"));
+    lsdj_menu_key(&m, JOYPAD_DOWN);                            /* ZOOM: off, and kept so */
+    CHECK(m.item == LSDJ_MI_ZOOM && lsdj_menu_key(&m, JOYPAD_RIGHT) && !m.set.zoom);
+    lsdj_menu_line(&m, LSDJ_MI_ZOOM, label, value);
+    CHECK(!strcmp(value, "OFF"));
+    lsdj_set_pack(&m.set, b);
+    CHECK(b[1] == 0x20);
     lsdj_menu_key(&m, JOYPAD_DOWN);                            /* STATUS BAR */
     CHECK(lsdj_menu_key(&m, JOYPAD_RIGHT) && m.set.bar == 1);
     lsdj_menu_line(&m, LSDJ_MI_BAR, label, value);
@@ -437,7 +525,7 @@ static void test_menu(void)
     {
         lsdj_set_t t;
         lsdj_set_unpack(&t, b);
-        CHECK(t.theme == LSDJ_THEME_DARK && t.bar == 1 && t.off == LSDJ_MI_BIT[LSDJ_MI_DRAW]);
+        CHECK(t.theme == LSDJ_THEME_DARK && !t.zoom && t.bar == 1 && t.off == LSDJ_MI_BIT[LSDJ_MI_DRAW]);
         b[0] = 0x7F;                                           /* a theme this firmware does not have: DMG */
         lsdj_set_unpack(&t, b);
         CHECK(t.theme == LSDJ_THEME_DMG);
@@ -463,6 +551,7 @@ int main(void)
     test_pad_text();
     test_line_and_span();
     test_scale();
+    test_zoom_view();
     test_ring();
     test_unpack();
     test_master();

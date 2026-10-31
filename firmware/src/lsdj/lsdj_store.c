@@ -6,7 +6,7 @@
  * Include lsdj_gb.c (lsdj_unpack) and lsdj_xfer.c (lsdj_crc32_add) first. No name here starts with st_ or fl_:
  * gate 2b (tools/check_update_path.py) takes those for the core's storage and flash driver.
  *
- *   sectors 0, 1   the layout record, two copies: K, the number of kit banks, and the GLO menu's settings (two
+ *   sectors 0, 1   the layout record, two copies: K, the number of kit banks, and the menu's settings (two
  *                  bytes, lsdj_gb.c lsdj_set_pack; 0, 0 in records from before them: the defaults). The newer whole
  *                  copy counts.
  *   kit banks      K of them (0..12), 16 KiB each, a ROM bank as it is, from the top down; an erased one reads 0xFF,

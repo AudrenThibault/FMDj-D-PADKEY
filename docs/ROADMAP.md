@@ -16,7 +16,7 @@ to be missing. Updated 2026-10-22.
 - **Saves in flash**: REC held for a second; PLAY loads it. LSDj's custom kits in flash too.
 - **The song page**: LSDj's songs and kits in and out over USB; DMGo's whole save.
 - **The simulator**: the FM-1 and its firmware in the browser, with your ROM, saves and projects.
-- **The GLO menu**: screen themes (DMG green, Pocket, Light, Super Game Boy, Dark), the status bar (FPS, CPU, gaps;
+- **The menu (ENV)**: screen themes (DMG green, Pocket, Light, Super Game Boy, Dark), the status bar (FPS, CPU, gaps;
   off at first, the picture then centred), the emulator's options; kept in flash.
 
 ## Next
@@ -31,7 +31,7 @@ to be missing. Updated 2026-10-22.
 ## Known gaps
 
 - The status bar shows `FPS 0.0` for its first 4 seconds after PLAY, and FPS wobbles by 0.2 at real time.
-- In the GLO menu the PRESETS knob and OCT- / OCT+ also act (they send SELECT with a direction).
+- In the menu (ENV) the PRESETS knob and OCT- / OCT+ also act (they send SELECT with a direction).
 - With LSDj's kit banks at 11 or 12, a DMGo save that packs poorly may not fit (SAVE FULL); the kit banks can only be
   given back from LSDj.
 - `ble kits` with DMGo's save kept answers as a flash failure, not with its own reason.
@@ -41,5 +41,5 @@ to be missing. Updated 2026-10-22.
 ## Waiting for a check on the device
 
 - DMGo installed with the install page; its steps from the white keys.
-- The GLO menu: themes, the status bar, the centred picture, the settings kept over a power-off
+- The menu (ENV): themes, the status bar, the centred picture, the settings kept over a power-off
   (`docs/lsdj/DEVICE_STEPS_MENU.md`).

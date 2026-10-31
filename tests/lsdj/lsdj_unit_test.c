@@ -77,6 +77,9 @@ uint32_t core_notes(void) { return notes; }
 uint32_t core_button_bit(int label) { return 1u << label; }   /* (the stub: matrix id = label) */
 uint32_t core_play_bit(void) { return 1u << 10; }
 uint32_t core_rec_bit(void) { return 1u << 11; }
+static int led_button[CORE_NBTN], led_note[27];   /* the LEDs as the unit set them (CORE_LED_*) */
+void core_led_button(int label, int level) { if (label >= 0 && label < CORE_NBTN) led_button[label] = level; }
+void core_led_note(int n, int level) { if (n >= 0 && n < 27) led_note[n] = level; }
 static char con_log[4096];                    /* what the unit printed on the console */
 static char con_line[64];                     /* the console line being carried out */
 void core_con_puts(const char *s)
@@ -171,18 +174,18 @@ static uint32_t pad_presses(uint8_t key, uint8_t with, uint32_t passes)
     return n;
 }
 
-/* the GLO menu, as a hand at the FM-1 uses it: GLO opens and closes it; SCL / SAVE (UP / DOWN) choose a line,
+/* the menu, as a hand at the FM-1 uses it: ENV opens and closes it; SCL / SAVE (UP / DOWN) choose a line,
  * HOME / ARP (LEFT / RIGHT) or A change it, B closes it too */
-static void glo(void) { ble_key(core_button_bit(CORE_BTN_GLO), 0); pass(); }
+static void env(void) { ble_key(core_button_bit(CORE_BTN_ENV), 0); pass(); }
 static void menu_press(int button) { buttons = core_button_bit(button); pass(); buttons = 0; pass(); }
 static void option(uint32_t item)             /* the menu's line `item` one value on (RIGHT), and closed */
 {
     uint32_t i;
-    glo();
+    env();
     for (i = 0; i < item; i++)
         menu_press(CORE_BTN_SAVE);
     menu_press(CORE_BTN_ARP);
-    glo();
+    env();
     pass();                                   /* (its settings into flash) */
 }
 
@@ -207,50 +210,52 @@ static void test_menu(void)                   /* the menu over the picture's low
     for (y = 0, e = 0; y < LSDJ_H; y += 7u)
         e += screen[y0 + y * 3u / 2u + (y & 1u)][(y * 3u) % 240u] != pal[fb[y][(y * 2u) % 160u]];
     CHECK(e == 0);
-    glo();
-    CHECK(menu.open && !strcmp(small_text, "MENU  (GLO CLOSES)"));
+    env();
+    CHECK(menu.open && !strcmp(small_text, "MENU  (ENV CLOSES)"));
     for (i = 0, f = st.frames; i < 30; i++)
         pass();
     CHECK(st.frames > f + 25 && emu.errors == 0);   /* the Game Boy plays on */
-    notes = 1u << 24;                         /* A (LSDj's: the top F): the menu's, not the Game Boy's */
+    notes = 1u << 25;                         /* A (D-PAD: F#5): the menu's, not the Game Boy's */
     pass();
     CHECK(st.pad == 0xFF && menu.set.theme == LSDJ_THEME_POCKET && pal[0] == RGB(232, 232, 224));
     notes = 0;
     pass();
     for (i = 0; i < 300; i++)                 /* the new colours: only the picture above the menu is sent */
         ble_draw();
-    for (y = 0, e = 0; y < 2u * MENU_G; y++)
+    for (y = 0, e = 0; y < menu_group() * g_lines; y++)
         e |= dirty[y];
-    CHECK(e == 0 && dirty[2u * MENU_G] && dirty[LSDJ_H - 1u]);
-    menu_press(CORE_BTN_SAVE);                /* DOWN: STATUS BAR; RIGHT: on */
+    CHECK(e == 0 && dirty[menu_group() * g_lines] && dirty[LSDJ_H - 1u]);
+    menu_press(CORE_BTN_SAVE);                /* DOWN, DOWN: STATUS BAR (under ZOOM); RIGHT: on */
+    menu_press(CORE_BTN_SAVE);
     menu_press(CORE_BTN_ARP);
     CHECK(menu.item == LSDJ_MI_BAR && menu.set.bar && !strncmp(keys_text, "GAPS ", 5) && y0 == 4u);   /* (the picture
                                                                                          * up again, the bar under it) */
     e = flash_progs;
     CHECK(store.set[0] == 0 && store.set[1] == 0);
-    glo();                                    /* closed: the picture under it again, the settings into flash */
+    env();                                    /* closed: the picture under it again, the settings into flash */
     pass();
-    CHECK(!menu.open && flash_progs > e && store.set[0] == LSDJ_THEME_POCKET && store.set[1] == 0x10);
+    CHECK(!menu.open && flash_progs > e && store.set[0] == LSDJ_THEME_POCKET && store.set[1] == 0x30);
     for (i = 0; i < 300; i++)
         ble_draw();
     for (y = 0, e = 0; y < LSDJ_H; y++)
         e |= dirty[y];
     CHECK(e == 0);
-    glo();                                    /* LEFT: back to DMG; B closes */
+    env();                                    /* LEFT: back to DMG; B closes */
     menu_press(CORE_BTN_HOME);
-    notes = 1u << 26;
+    notes = 1u << 24;
     pass();
     notes = 0;
     pass();
     CHECK(!menu.open && store.set[0] == LSDJ_THEME_DMG && pal[0] == RGB(0x9B, 0xBC, 0x0F));
     e = flash_erases;                         /* opened and closed, nothing changed: nothing written */
-    glo();
-    glo();
+    env();
+    env();
     pass();
     CHECK(flash_erases == e && !menu.open);
     option(LSDJ_MI_SOUND);                    /* an emulator option: SOUND per frame */
     CHECK(emu_mode == (EMU_FAST_ROM | EMU_FRAME_SKIP | EMU_WAIT_SKIP) && strstr(keys_text, " OLD"));
-    ble_key(core_button_bit(CORE_BTN_FX) | core_button_bit(CORE_BTN_ENV), 0);   /* the old buttons: nothing now */
+    ble_key(core_button_bit(CORE_BTN_FX) | core_button_bit(CORE_BTN_LFO) | core_button_bit(CORE_BTN_EDIT), 0);   /* the old
+                                                                                   * buttons: nothing now */
     CHECK(emu_mode == (EMU_FAST_ROM | EMU_FRAME_SKIP | EMU_WAIT_SKIP) && !menu.open);
     lsdj_start();                             /* power-on and PLAY: the settings from flash */
     CHECK(menu.set.bar && menu.set.theme == LSDJ_THEME_DMG && menu.set.off == EMU_SND_FINE && emu_mode == 7);
@@ -258,8 +263,8 @@ static void test_menu(void)                   /* the menu over the picture's low
     CHECK(emu_mode == 15);
     {   /* closed with B: B (and anything held then) reaches the Game Boy only once let go and pressed again */
         uint32_t k, leaked = 0;
-        glo();
-        notes = 1u << 26;                     /* B down: closes */
+        env();
+        notes = 1u << 24;                     /* B (D-PAD: F5) down: closes */
         for (k = 0; k < 6; k++) {
             pass();
             leaked |= !(st.pad & JOYPAD_B);
@@ -269,8 +274,8 @@ static void test_menu(void)                   /* the menu over the picture's low
         pass();
         buttons = core_button_bit(CORE_BTN_ARP);   /* RIGHT (ARP) held through the menu: not its key at open, and not */
         pass();                               /* the Game Boy's after close, with turns waiting at close */
-        glo();
-        ble_key(core_button_bit(CORE_BTN_GLO), 3);
+        env();
+        ble_key(core_button_bit(CORE_BTN_ENV), 3);
         for (k = 0, leaked = 0; k < 8; k++) {
             pass();
             leaked |= st.pad != 0xFF;
@@ -279,19 +284,19 @@ static void test_menu(void)                   /* the menu over the picture's low
         buttons = 0;
         notes = 0;
         pass();
-        notes = 1u << 26;                     /* B pressed again: the Game Boy's */
+        notes = 1u << 24;                     /* B pressed again: the Game Boy's */
         pass();
         CHECK(!(st.pad & JOYPAD_B));
         notes = 0;
         pass();
         CHECK(menu.set.theme == LSDJ_THEME_DMG);   /* (RIGHT on SCREEN was not taken: it was held at open) */
     }
-    {   /* the console holds the Game Boy: GLO still shows the menu */
+    {   /* the console holds the Game Boy: ENV still shows the menu */
         console("ble hold");
         small_text[0] = 0;
-        glo();
-        CHECK(menu.open && !strcmp(small_text, "MENU  (GLO CLOSES)"));
-        glo();
+        env();
+        CHECK(menu.open && !strcmp(small_text, "MENU  (ENV CLOSES)"));
+        env();
         console("ble go");
     }
     {   /* `ble mode` (the test bench) and the menu agree */
@@ -315,9 +320,9 @@ static void test_menu(void)                   /* the menu over the picture's low
         steps.busy = 1;
         steps.keep[0] = 3; steps.keep[1] = 5; steps.keep[2] = 5;
         emu.gb.wram[0x01A] = 12; emu.gb.wram[0x01B] = emu.gb.wram[0xB1F] = 7;
-        glo();
+        env();
         CHECK(menu.open && !steps.busy && emu.gb.wram[0x01A] == 3 && emu.gb.wram[0x01B] == 5 && emu.gb.wram[0xB1F] == 5);
-        glo();
+        env();
         with_steps = 0;
         emu.gb.wram[0x01A] = keep[0]; emu.gb.wram[0x01B] = keep[1]; emu.gb.wram[0xB1F] = keep[2];
     }
@@ -325,6 +330,211 @@ static void test_menu(void)                   /* the menu over the picture's low
         pass();
     CHECK(emu.errors == 0);
     flash_clean();                            /* (the status bar stays on for the tests after this one) */
+}
+
+static void dpad_lit(void)                     /* D-PAD: GLO lit (no blinking), the pad's keys glow, the others dark */
+{
+    uint32_t i;
+    CHECK(dpad && led_button[CORE_BTN_GLO] == CORE_LED_LIT);
+    for (i = 0; i < 27u; i++)
+        CHECK(led_note[i] == ((0x03E000D7u >> i) & 1u ? CORE_LED_GLOW : CORE_LED_OFF));
+}
+
+/* D-PAD at start, GLO steady; GLO to KEYBOARD: the note keys no Game Boy key, GLO blinking; GLO back to D-PAD (no
+ * key reaches the Game Boy doing so) */
+static void keyboard_mode(void)
+{
+    uint32_t i;
+    int seen_glow = 0, seen_off = 0;
+    for (i = 0; i < 50; i++) {
+        pass();
+        dpad_lit();
+    }
+    ble_key(core_button_bit(CORE_BTN_GLO), 0);
+    CHECK(!dpad && !strcmp(st.note, "KEYBOARD"));
+    for (i = 0; i < 27u; i++)                 /* KEYBOARD: every key glows (what the unit asks: the core lights them
+        CHECK(led_note[i] == CORE_LED_GLOW);   * with FMDJ_LEDS) */
+    for (i = 0; i < 50; i++) {                /* GLO blinks, the glow then dark, 0.4 s each, as OPLBend Tracker's */
+        uint32_t t = core_ms();               /* (the pass's time: the clock moves on after it) */
+        pass();
+        CHECK(led_button[CORE_BTN_GLO] == ((t / 400u) & 1u ? CORE_LED_GLOW : CORE_LED_OFF));
+        seen_glow |= led_button[CORE_BTN_GLO] == CORE_LED_GLOW;
+        seen_off |= led_button[CORE_BTN_GLO] == CORE_LED_OFF;
+    }
+    CHECK(seen_glow && seen_off);
+    notes = 0x07FFFFFFu;                      /* every note key */
+    for (i = 0; i < 4; i++) {
+        pass();
+        CHECK(st.pad == 0xFF);
+    }
+    notes = 0;
+    pass();
+    ble_key(core_button_bit(CORE_BTN_GLO), 0);
+    CHECK(dpad && !strcmp(st.note, "D-PAD"));
+    dpad_lit();
+    for (i = 0; i < 110; i++) {               /* (its name shown for 2 s) */
+        pass();
+        CHECK(st.pad == 0xFF);
+    }
+    dpad_lit();
+}
+
+/* D-PAD: OPLBend Tracker's keys, each to its Game Boy key through the whole unit; a key held at GLO waits for its
+ * release; GLO back to KEYBOARD and the keys are a keyboard again */
+static void test_dpad(void)
+{
+    static const struct { uint32_t note; uint8_t pad; } K[] = {
+        {0, JOYPAD_LEFT}, {1, JOYPAD_UP}, {2, JOYPAD_DOWN}, {4, JOYPAD_RIGHT}, {6, JOYPAD_SELECT}, {7, JOYPAD_SELECT},
+        {21, JOYPAD_SELECT}, {22, JOYPAD_START}, {23, JOYPAD_B}, {24, JOYPAD_B}, {25, JOYPAD_A}};
+    uint32_t i;
+    CHECK(dpad);
+    for (i = 0; i < sizeof K / sizeof K[0]; i++) {
+        notes = 1u << K[i].note;              /* held 8 frames: one press of its Game Boy key, and no other key */
+        CHECK(pad_presses(K[i].pad, 0, 8) == 1 && (st.pad | K[i].pad) == 0xFF);
+        notes = 0;
+        pass();
+        CHECK(st.pad == 0xFF);
+    }
+    notes = (1u << 3) | (1u << 5) | 0x1FFF00u | (1u << 26);   /* the other keys: nothing */
+    pass();
+    CHECK(st.pad == 0xFF);
+    notes = 1u << 25;                         /* A held through GLO: KEYBOARD, nothing; nor back in D-PAD until let go */
+    pass();
+    ble_key(core_button_bit(CORE_BTN_GLO), 0);
+    pass();
+    CHECK(!dpad && !strcmp(st.note, "KEYBOARD") && st.pad == 0xFF);
+    ble_key(core_button_bit(CORE_BTN_GLO), 0);
+    pass();
+    CHECK(dpad && st.pad == 0xFF);
+    notes = 0;
+    pass();
+    notes = 1u << 25;
+    pass();
+    CHECK(st.pad == (uint8_t)~JOYPAD_A);
+    notes = 0;
+    pass();
+    {   /* the menu (ENV) in D-PAD: the cross on the keyboard moves its line, nothing reaches the Game Boy */
+        uint32_t k, leaked = 0, item;
+        env();
+        CHECK(menu.open);
+        item = menu.item;
+        for (k = 0; k < 2u; k++) {
+            uint32_t j;
+            notes = 1u << 2;                  /* DOWN (G3) */
+            for (j = 0; j < 3u; j++) { pass(); leaked |= st.pad != 0xFF; }
+            notes = 0;
+            for (j = 0; j < 3u; j++) { pass(); leaked |= st.pad != 0xFF; }
+        }
+        CHECK(menu.item == (item + 2u) % LSDJ_NMI && !leaked);
+        env();
+        CHECK(!menu.open);
+        for (k = 0; k < 10u; k++)
+            pass();
+    }
+    CHECK(emu.errors == 0);
+}
+
+/* D-PAD: a cross key held a second: 1 press, then from frame 20 one every 4 frames (lsdj_rep_frame) */
+static void test_dpad_repeat(void)
+{
+    uint32_t n;
+    CHECK(dpad);
+    notes = 1u << 1;                          /* UP (F#3) held 1 s: 60 frames (LSDj 59.7 a second) */
+    n = pad_presses(JOYPAD_UP, 0, 67);
+    CHECK(n >= 1u + (60u - LSDJ_REP_DELAY) / LSDJ_REP_RATE - 2u && n <= 1u + (64u - LSDJ_REP_DELAY) / LSDJ_REP_RATE);
+    notes = 0;
+    CHECK(pad_presses(JOYPAD_UP, 0, 4) == 0);
+    notes = 1u << 2;                          /* DOWN (G3) a short tap (8 frames): one press */
+    n = pad_presses(JOYPAD_DOWN, 0, 8);
+    notes = 0;
+    n += pad_presses(JOYPAD_DOWN, 0, 4);
+    CHECK(n == 1);
+}
+
+static void screen_dump(const char *path)     /* the simulated panel as a PPM (build/lsdj/, for a look) */
+{
+    FILE *f = fopen(path, "wb");
+    uint32_t x, y;
+    if (!f)
+        return;
+    fprintf(f, "P6 240 240 255\n");
+    for (y = 0; y < 240; y++)
+        for (x = 0; x < 240; x++) {
+            uint16_t c = (uint16_t)(screen[y][x] >> 8 | screen[y][x] << 8);
+            fputc((c >> 11) << 3, f);
+            fputc(((c >> 5) & 63) << 2, f);
+            fputc((c & 31) << 3, f);
+        }
+    fclose(f);
+}
+
+/* ZOOM, on at first: LSDj's columns 0..119 over the whole screen, each pixel twice, lines in threes 5 rows high */
+/* zoomed: the screen against LSDj's picture, as OPLBend Tracker's 4 COL: the header's two tile rows 10 screen rows
+ * each, then 10 tile rows of 22 from ztop; columns 0..119 twice as wide. The pixels that differ */
+static uint32_t zoom_diff(void)
+{
+    static const uint8_t ROW22[22] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7};
+    static const uint8_t ROW10[10] = {0, 1, 2, 2, 3, 4, 5, 6, 6, 7};
+    uint32_t t, r, x, y = 0, diff = 0;
+    for (t = 0; t < LSDJ_H / 8u; t++) {
+        uint32_t h = t < 2u ? 10u : t >= ztop && t < ztop + 10u ? 22u : 0u;
+        for (r = 0; r < h; r++, y++)
+            for (x = 0; x < LSDJ_ZW; x++) {
+                uint16_t c = pal[fb[8u * t + (h == 22u ? ROW22[r] : ROW10[r])][x]];
+                diff += (screen[y][2u * x] != c) + (screen[y][2u * x + 1u] != c);
+            }
+    }
+    CHECK(y == 240u);
+    return diff;
+}
+
+static void test_zoom(void)
+{
+    uint32_t i;
+    CHECK(menu.set.zoom && zoomed && y0 == 0 && g_lines == 8u && g_n == 18u && ztop == 2u && !border_req);
+    for (i = 0; i < 300; i++)
+        ble_draw();
+    CHECK(zoom_diff() == 0);
+    screen_dump("build/lsdj/zoom_screen.ppm");
+    lsdj_note_for("D-PAD", 1000u);
+    screen_dump("build/lsdj/zoom_announce.ppm");
+    for (i = 0; i < 60; i++)
+        pass();
+    menu.set.zoom = 0;                        /* the tests after this one: without the zoom (not into flash) */
+    set_saved = menu.set;
+    settings_apply();
+    for (i = 0; i < 300; i++)
+        ble_draw();
+    CHECK(!zoomed && y0 == 12u && g_n == 72u);
+}
+
+/* the announcement (D-PAD...): big in the middle over the picture, then the picture again */
+static void test_announce(void)
+{
+    uint32_t i;
+    for (i = 0; i < 300; i++)
+        ble_draw();
+    lsdj_note_for("D-PAD", 1000u);
+    CHECK(ann_on && ann_e == 4u && ann_bx0 < 120u && ann_bx1 > 120u && ann_by0 < 120u && ann_by1 > 120u);
+    CHECK(screen[ann_by0][120] == pal[3] && screen[ann_by0 + 1u][ann_bx0 + 1u] == pal[0]);   /* drawn at once */
+    for (i = 0; i < 300; i++)
+        ble_draw();
+    CHECK(screen[ann_by0][120] == pal[3]);    /* (the picture sent under it keeps it) */
+    for (i = 0; i < 60; i++)                  /* 1.2 s */
+        pass();
+    for (i = 0; i < 300; i++)
+        ble_draw();
+    CHECK(!ann_on);
+    {   /* the box gone: the picture as the mode draws it (test_flash started LSDj again: zoomed, as at first) */
+        uint32_t x, y, diff = 0;
+        if (zoomed)
+            diff = zoom_diff();
+        else
+            for (y = 0; y < LSDJ_H; y++)
+                for (x = 0; x < LSDJ_W; x++)
+                    diff += screen[y0 + y * 3u / 2u + (y & 1u)][x * 3u / 2u + (x & 1u)] != pal[fb[y][x]];
+        CHECK(diff == 0);
+    }
 }
 
 static void test_knobs_and_shortcuts(void)    /* the knobs are the cursor; PRESETS and OCT- / OCT+ change LSDj's screen */
@@ -343,7 +553,7 @@ static void test_knobs_and_shortcuts(void)    /* the knobs are the cursor; PRESE
     enc_algo = -1;
     ble_key(0, 0);
     CHECK(pad_presses(JOYPAD_UP, 0, 40) == 1);
-    notes = 1u << 24;                                 /* the top F held: A + the knob */
+    notes = 1u << 25;                                 /* F#5 held (D-PAD): A + the knob */
     ble_key(0, 2);
     CHECK(pad_presses(JOYPAD_RIGHT, JOYPAD_A, 40) == 2);
     notes = 0;
@@ -411,6 +621,83 @@ static void test_project_shortcuts(void)
     for (i = 0; i < 60; i++)
         pass_ms(15);
     CHECK(emu.gb.wram[0x401] == 4 && emu.gb.wram[0x8FF] == 0 && st.pad == 0xFF && emu.errors == 0);
+}
+
+/* The owner's report (2026-10-31): in D-PAD the keyboard's cross moved the menu's line but not LSDj's cursor, as its
+ * presses were down a single frame, which LSDj (9.4.0) does not take. On SONG: a tap moves the cursor one row, the
+ * cross held 1 s as many rows as it made presses (the screen as after that many taps) */
+static void dpad_hold(uint32_t note, uint32_t frames)   /* the note key held that many Game Boy frames, then let go */
+{
+    uint32_t f = st.frames, i;
+    notes = 1u << note;
+    while (st.frames - f < frames)
+        pass_ms(15);
+    notes = 0;
+    for (i = 0; i < 40; i++)
+        pass_ms(15);
+}
+
+static void test_dpad_lsdj(void)
+{
+    static uint8_t s0[LSDJ_H][LSDJ_W], s1[LSDJ_H][LSDJ_W];
+    const uint32_t n = 1u + (59u - LSDJ_REP_DELAY) / LSDJ_REP_RATE + 1u;   /* presses in 60 frames held */
+    uint32_t i;
+    CHECK(dpad && emu.gb.wram[0x401] == 4);
+    for (i = 0; i < 60; i++)
+        pass_ms(15);
+    memcpy(s0, fb, sizeof s0);
+    dpad_hold(2, 4);                          /* DOWN (G3) tapped: the cursor a row down */
+    CHECK(memcmp(s0, fb, sizeof s0) != 0);
+    dpad_hold(1, 4);                          /* UP (F#3): back */
+    CHECK(memcmp(s0, fb, sizeof s0) == 0);
+    dpad_hold(2, 60);                         /* DOWN held 1 s */
+    memcpy(s1, fb, sizeof s1);
+    dpad_hold(1, 60);                         /* UP as long: back where it was */
+    CHECK(memcmp(s0, fb, sizeof s0) == 0);
+    for (i = 0; i < n; i++)                   /* n taps: where the held key went */
+        dpad_hold(2, 4);
+    CHECK(memcmp(s1, fb, sizeof s1) == 0);
+    for (i = 0; i < n; i++)
+        dpad_hold(1, 4);
+    CHECK(memcmp(s0, fb, sizeof s0) == 0 && emu.errors == 0);
+}
+
+/* zoomed, the view after LSDj's cursor as OPLBend Tracker's 4 COL (the owner, 2026-10-31): on SONG rows 00..09
+ * show; the cursor down past 09 moves the view a row at a time, up past its top back */
+static void test_zoom_follow(void)
+{
+    uint32_t i;
+    CHECK(zoomed && dpad && emu.gb.wram[0x401] == 4);
+    for (i = 0; i < 300; i++)
+        ble_draw();
+    for (i = 0; i < 3u; i++)                  /* the cursor on 00 (LSDj's save may have it lower) */
+        dpad_hold(1, 4);
+    {
+        uint32_t lo = 0, hi = 0;
+        CHECK(lsdj_cursor_rows(fb, &lo, &hi) && lo == 2u && hi == 2u);
+    }
+    CHECK(ztop == 2u && zoom_diff() == 0);
+    for (i = 0; i < 9u; i++)                  /* down to 09: the view stays */
+        dpad_hold(2, 4);
+    CHECK(ztop == 2u);
+    dpad_hold(2, 4);                          /* 0A: a row down */
+    CHECK(ztop == 3u);
+    for (i = 0; i < 5u; i++)                  /* 0F, LSDj's last row on screen: the view at the bottom */
+        dpad_hold(2, 4);
+    CHECK(ztop == LSDJ_ZTOP_MAX);
+    for (i = 0; i < 300; i++)
+        ble_draw();
+    CHECK(zoom_diff() == 0);
+    screen_dump("build/lsdj/zoom_follow.ppm");
+    for (i = 0; i < 6u; i++)                  /* up to 09: the view stays */
+        dpad_hold(1, 4);
+    CHECK(ztop == LSDJ_ZTOP_MAX);
+    for (i = 0; i < 9u; i++)                  /* up to 00: back to the top */
+        dpad_hold(1, 4);
+    CHECK(ztop == 2u);
+    for (i = 0; i < 300; i++)
+        ble_draw();
+    CHECK(zoom_diff() == 0 && emu.errors == 0);
 }
 
 static void test_flash(void)                  /* REC held 1 s saves; PLAY after power-on loads it; a kit bank */
@@ -770,25 +1057,33 @@ int main(int argc, char **argv)
     }
     memset(flash_sim, 0xFF, sizeof flash_sim);   /* an empty store */
     ble_draw();                               /* the splash, before PLAY: LSDj's keys and DMGo's */
-    CHECK(texts == 6 && !ble_started());
+    CHECK(texts == 7 && !ble_started());
     for (i = 0; i < 50; i++)
         pass();
-    CHECK(!ble_started() && st.frames == 0);  /* nothing runs before PLAY */
+    CHECK(!ble_started() && st.frames == 0);  /* nothing runs before PLAY, */
     lsdj_audio(out, 32);
     CHECK(out[0] == 0 && out[63] == 0);
-    buttons = core_play_bit();
-    ble_key(buttons, 0);                      /* PLAY: start */
-    buttons = 0;
-    CHECK(ble_started() && st.error == 0);
+    {   /* ... or before the start screen's 3 s: the core calls ble_key every pass, keys or not */
+        uint32_t t0 = splash_ms;
+        while (!ble_started()) {
+            CHECK(core_ms() - t0 < SPLASH_MS + 20u);
+            ble_key(0, 0);
+            pass();
+        }
+        CHECK(core_ms() - t0 >= SPLASH_MS && st.error == 0 && dpad);
+    }
     for (i = 0; i < 150; i++)                 /* 3 s */
         pass();
     CHECK(st.gaps == 0 && keys_text[0] == 0);   /* no gap (the empty ring at the start is not one); no status bar */
+    test_zoom();                              /* (then without it) */
+    keyboard_mode();                          /* D-PAD at start, KEYBOARD, D-PAD again (whose A and B the tests use) */
     test_menu();                              /* (the status bar on from here) */
     CHECK(st.gaps == 0);
     for (i = 0; i < 300; i++)                 /* 6 s */
         pass();
     CHECK(st.frames > 250 && emu.errors == 0);
     test_project_shortcuts();                 /* (first: LSDj as it starts) */
+    test_dpad_lsdj();                         /* (on SONG, in D-PAD) */
     {   /* the MASTER pot: full -> the sound as made; down -> silence */
         int32_t a[64], k;
         int nz = 0;
@@ -814,12 +1109,12 @@ int main(int argc, char **argv)
         pass();
         pass();
         CHECK(st.pad == (uint8_t)~(JOYPAD_START | JOYPAD_SELECT) && st.pad_shown == st.pad && texts > t);
-        buttons = core_button_bit(CORE_BTN_SCL);                                     /* UP (button) + A (the top F) */
-        notes = 1u << 24;
+        buttons = core_button_bit(CORE_BTN_SCL);                                     /* UP (button) + A (F#5) */
+        notes = 1u << 25;
         pass();
         CHECK(st.pad == (uint8_t)~(JOYPAD_UP | JOYPAD_A));
         buttons = core_rec_bit() | core_button_bit(CORE_BTN_EDIT);                  /* free now */
-        notes = 1u << 26;                                                            /* B (the top G) */
+        notes = 1u << 24;                                                            /* B (F5) */
         pass();
         CHECK(st.pad == (uint8_t)~JOYPAD_B);
         notes = 0;
@@ -906,6 +1201,10 @@ int main(int argc, char **argv)
     test_console();
     test_knobs_and_shortcuts();
     test_flash();
+    test_dpad();
+    test_dpad_repeat();
+    test_announce();
+    test_zoom_follow();                       /* (zoomed again since test_flash) */
     ble_status();
     printf(fails ? "lsdj_unit_test: %d FAILED\n" : "lsdj_unit_test: all passed (%u blits)\n",
            fails ? (unsigned)fails : blits);

@@ -12,6 +12,17 @@
 #define LSDJ_H 144u
 #define LSDJ_BANK 0x4000u
 #define LSDJ_SX(x) ((x) * 3u / 2u)            /* Game Boy x (even) -> screen x */
+/* ZOOM (the menu, on at first, as OPLBend Tracker's 4 COL): LSDj's columns 0..119 only (its right panel, the
+ * channel, tempo and screen map, cut), twice as wide, and lines in threes made five rows high: the whole screen */
+#define LSDJ_ZW 120u
+#define LSDJ_ZX(x) ((x) * 2u)                 /* Game Boy x -> screen x, zoomed */
+/* ... and its rows, as OPLBend Tracker's 4 COL (cells of 16 x 22 under a header of 11): LSDj's two top tile rows
+ * (the screen's name, the columns' titles) 10 rows each, then 10 tile rows of 22, from LSDJ_ZHEAD + the view's top */
+#define LSDJ_ZHEAD 2u                         /* tile rows always shown at the top */
+#define LSDJ_ZHEAD_H 10u
+#define LSDJ_ZROWS 10u                        /* tile rows shown under them */
+#define LSDJ_ZROW_H 22u
+#define LSDJ_ZTOP_MAX (LSDJ_H / 8u - LSDJ_ZROWS)   /* the view's lowest top: the last tile row at the bottom */
 
 #ifndef JOYPAD_A                              /* Peanut-GB's joypad bits (active low in gb.direct.joypad) */
 #define JOYPAD_A 0x01
@@ -105,6 +116,53 @@ static uint8_t lsdj_pad_ab(uint32_t buttons, uint32_t notes, const uint32_t map[
 static uint8_t lsdj_pad(uint32_t buttons, uint32_t notes, const uint32_t map[8])   /* LSDj's A and B */
 {
     return lsdj_pad_ab(buttons, notes, map, LSDJ_NOTE_A, LSDJ_NOTE_B);
+}
+
+/* D-PAD mode (GLO): the keyboard is a Game Boy pad, the cross on the left and A to the right of B, the layout of
+ * OPLBend Tracker's D-PAD mode. In JOYPAD bit order (A, B, SELECT, START, RIGHT, LEFT, UP, DOWN), the note keys
+ * of each: A F#5; B F5 and E5; SELECT B3, C4 and D5; START D#5 (and PLAY); RIGHT A3; LEFT F3; UP F#3; DOWN G3 */
+static const uint32_t LSDJ_DPAD_NOTE[8] = {
+    1u << 25, (1u << 24) | (1u << 23), (1u << 6) | (1u << 7) | (1u << 21), 1u << 22,
+    1u << 4, 1u << 0, 1u << 1, 1u << 2};
+
+static uint8_t lsdj_pad_dpad(uint32_t buttons, uint32_t notes, const uint32_t map[8])   /* the buttons as before */
+{
+    uint32_t down = 0, i;
+    for (i = 0; i < 8u; i++)
+        if ((buttons & map[i]) || (notes & LSDJ_DPAD_NOTE[i]))
+            down |= 1u << i;
+    return (uint8_t)~down;
+}
+
+/* The cross held on the note keys repeats as OPLBend Tracker's (its libnds keysSetRepeat(20, 2)): a press at once,
+ * then after LSDJ_REP_DELAY frames one every LSDJ_REP_RATE frames. Each press is down LSDJ_REP_DOWN frames and up
+ * the rest: LSDj (9.4.0, SONG; the host, 2026-10-31) takes no press down a single frame, and needs it up as long to
+ * see the next. So the repeat runs at 15 a second, not OPLBend's 30. Held down instead, LSDj's own repeat ran much
+ * quicker. */
+#define LSDJ_REP_DELAY 20u
+#define LSDJ_REP_RATE 4u
+#define LSDJ_REP_DOWN 2u
+typedef struct {
+    uint16_t held[4];                         /* frames each direction (RIGHT, LEFT, UP, DOWN) has been held */
+} lsdj_rep_t;
+
+/* a frame: `pad` (active low) with the directions in `dirs` (held on note keys, down = 1) pressed as above */
+static uint8_t lsdj_rep_frame(lsdj_rep_t *r, uint8_t pad, uint8_t dirs)
+{
+    uint32_t i, n;
+    for (i = 0; i < 4u; i++) {
+        uint8_t bit = (uint8_t)(JOYPAD_RIGHT << i);
+        if (!(dirs & bit)) {
+            r->held[i] = 0;
+            continue;
+        }
+        n = r->held[i];
+        if (n < 0xFFFFu)
+            r->held[i] = (uint16_t)(n + 1u);
+        if (!(n < LSDJ_REP_DOWN || (n >= LSDJ_REP_DELAY && (n - LSDJ_REP_DELAY) % LSDJ_REP_RATE < LSDJ_REP_DOWN)))
+            pad |= bit;                       /* up this frame */
+    }
+    return pad;
 }
 
 /* Knob steps -> short presses, one Game Boy frame at a time. LSDj reads its keys once a frame; measured on 9.4.2
@@ -233,9 +291,9 @@ static uint8_t lsdj_steps_frame(lsdj_steps_t *s, uint8_t *wram, uint8_t pad)
     return s->out = (uint8_t)~JOYPAD_B;
 }
 
-/* The GLO menu (the owner's, 2026-10-22): the screen's colours, the status bar, the emulator's four options (once
- * the FX, LFO, EDIT, ENV buttons). Kept in flash as two bytes (lsdj_store.c, the layout record); 0, 0 is every
- * default: DMG green, no status bar, every option on. */
+/* The menu, on ENV (on GLO before the D-PAD mode; the owner's, 2026-10-22): the screen's colours, the zoom, the
+ * status bar, the emulator's four options (once the FX, LFO, EDIT, ENV buttons). Kept in flash as two bytes
+ * (lsdj_store.c, the layout record); 0, 0 is every default: DMG green, zoom on, no status bar, every option on. */
 enum { LSDJ_THEME_DMG, LSDJ_THEME_POCKET, LSDJ_THEME_LIGHT, LSDJ_THEME_SGB, LSDJ_THEME_DARK, LSDJ_NTHEME };
 static const char LSDJ_THEME_NAME[LSDJ_NTHEME][8] = {"DMG", "POCKET", "LIGHT", "SGB", "DARK"};
 static const uint8_t LSDJ_THEME_RGB[LSDJ_NTHEME][4][3] = {   /* shade 0 (the Game Boy's lightest) .. 3 */
@@ -247,25 +305,27 @@ static const uint8_t LSDJ_THEME_RGB[LSDJ_NTHEME][4][3] = {   /* shade 0 (the Gam
 
 typedef struct {
     uint8_t theme;                            /* LSDJ_THEME_* */
-    uint8_t bar;                              /* the status bar under the picture */
+    uint8_t zoom;                             /* ZOOM: LSDj's columns 0..119 over the whole screen (LSDJ_ZW) */
+    uint8_t bar;                              /* the status bar under the picture (not with the zoom) */
     uint8_t off;                              /* the emulator's options switched off: lsdj_emu.c emu_mode bits */
 } lsdj_set_t;
 static void lsdj_set_pack(const lsdj_set_t *s, uint8_t b[2])
 {
     b[0] = s->theme;
-    b[1] = (uint8_t)((s->bar ? 0x10u : 0u) | (s->off & 0x0Fu));
+    b[1] = (uint8_t)((s->zoom ? 0u : 0x20u) | (s->bar ? 0x10u : 0u) | (s->off & 0x0Fu));
 }
 static void lsdj_set_unpack(lsdj_set_t *s, const uint8_t b[2])
 {
     s->theme = b[0] < LSDJ_NTHEME ? b[0] : LSDJ_THEME_DMG;
+    s->zoom = !(b[1] & 0x20u);
     s->bar = (b[1] & 0x10u) != 0;
     s->off = b[1] & 0x0Fu;
 }
 
 /* the lines, top to bottom; an emulator option's line is its emu_mode bit (EMU_FRAME_SKIP 2, EMU_FAST_ROM 1,
  * EMU_WAIT_SKIP 4, EMU_SND_FINE 8) */
-enum { LSDJ_MI_SCREEN, LSDJ_MI_BAR, LSDJ_MI_DRAW, LSDJ_MI_ROM, LSDJ_MI_WAIT, LSDJ_MI_SOUND, LSDJ_NMI };
-static const uint8_t LSDJ_MI_BIT[LSDJ_NMI] = {0, 0, 2, 1, 4, 8};
+enum { LSDJ_MI_SCREEN, LSDJ_MI_ZOOM, LSDJ_MI_BAR, LSDJ_MI_DRAW, LSDJ_MI_ROM, LSDJ_MI_WAIT, LSDJ_MI_SOUND, LSDJ_NMI };
+static const uint8_t LSDJ_MI_BIT[LSDJ_NMI] = {0, 0, 0, 2, 1, 4, 8};
 typedef struct {
     uint8_t open, item;
     lsdj_set_t set;
@@ -283,6 +343,8 @@ static int lsdj_menu_key(lsdj_menu_t *m, uint8_t key)
         return 0;
     if (m->item == LSDJ_MI_SCREEN)
         m->set.theme = (uint8_t)((m->set.theme + LSDJ_NTHEME + step) % LSDJ_NTHEME);
+    else if (m->item == LSDJ_MI_ZOOM)
+        m->set.zoom ^= 1u;
     else if (m->item == LSDJ_MI_BAR)
         m->set.bar ^= 1u;
     else
@@ -292,13 +354,15 @@ static int lsdj_menu_key(lsdj_menu_t *m, uint8_t key)
 
 static void lsdj_menu_line(const lsdj_menu_t *m, uint32_t item, char *label, char *value)   /* (>= 16 bytes each) */
 {
-    static const char LABEL[LSDJ_NMI][12] = {"SCREEN", "STATUS BAR", "DRAW", "ROM READ", "WAIT LOOP", "SOUND"};
-    static const char ON[LSDJ_NMI][12] = {"", "ON", "EVERY 2ND", "FAST", "SKIP", "IN FRAME"};
-    static const char OFF[LSDJ_NMI][12] = {"", "OFF", "EVERY", "PLAIN", "RUN", "PER FRAME"};
+    static const char LABEL[LSDJ_NMI][12] = {"SCREEN", "ZOOM", "STATUS BAR", "DRAW", "ROM READ", "WAIT LOOP", "SOUND"};
+    static const char ON[LSDJ_NMI][12] = {"", "ON", "ON", "EVERY 2ND", "FAST", "SKIP", "IN FRAME"};
+    static const char OFF[LSDJ_NMI][12] = {"", "OFF", "OFF", "EVERY", "PLAIN", "RUN", "PER FRAME"};
     const char *v;
     uint32_t i;
     if (item == LSDJ_MI_SCREEN)
         v = LSDJ_THEME_NAME[m->set.theme];
+    else if (item == LSDJ_MI_ZOOM)
+        v = m->set.zoom ? ON[item] : OFF[item];
     else if (item == LSDJ_MI_BAR)
         v = m->set.bar ? ON[item] : OFF[item];
     else
@@ -344,19 +408,19 @@ static int lsdj_line(uint8_t *row, const uint8_t *px)      /* Peanut-GB's line: 
     return d != 0;
 }
 
-/* the line pair at fb (rows fb, fb + LSDJ_W) against what the screen shows: changed -> 1 and [x0, x1), even */
-static int lsdj_span(const uint8_t *fb, const uint8_t *shown, uint32_t *x0, uint32_t *x1)
+/* `rows` lines at fb against what the screen shows, in columns 0 .. w - 1: changed -> 1 and [x0, x1) */
+static int lsdj_span_n(const uint8_t *fb, const uint8_t *shown, uint32_t rows, uint32_t w, uint32_t *x0, uint32_t *x1)
 {
-    uint32_t a = LSDJ_W, b = 0, r, x;
-    for (r = 0; r < 2u; r++) {
+    uint32_t a = w, b = 0, r, x;
+    for (r = 0; r < rows; r++) {
         const uint8_t *f = fb + r * LSDJ_W, *s = shown + r * LSDJ_W;
-        for (x = 0; x < LSDJ_W; x++)
+        for (x = 0; x < w; x++)
             if (f[x] != s[x]) {
                 if (x < a)
                     a = x;
                 break;
             }
-        for (x = LSDJ_W; x > 0u; x--)
+        for (x = w; x > 0u; x--)
             if (f[x - 1u] != s[x - 1u]) {
                 if (x > b)
                     b = x;
@@ -364,6 +428,17 @@ static int lsdj_span(const uint8_t *fb, const uint8_t *shown, uint32_t *x0, uint
             }
     }
     if (a >= b)
+        return 0;
+    *x0 = a;
+    *x1 = b;
+    return 1;
+}
+
+/* the line pair at fb (rows fb, fb + LSDJ_W) against what the screen shows: changed -> 1 and [x0, x1), even */
+static int lsdj_span(const uint8_t *fb, const uint8_t *shown, uint32_t *x0, uint32_t *x1)
+{
+    uint32_t a, b;
+    if (!lsdj_span_n(fb, shown, 2u, LSDJ_W, &a, &b))
         return 0;
     *x0 = a & ~1u;
     *x1 = (b + 1u) & ~1u;
@@ -392,6 +467,63 @@ static void lsdj_scale(uint16_t *out, const uint8_t *fb, uint32_t x0, uint32_t x
         out[o + 2u] = b;
         o += 3u;
     }
+}
+
+/* ZOOM: a tile row's 8 lines at fb as `rows` screen rows (LSDJ_ZHEAD_H or LSDJ_ZROW_H) of LSDJ_ZX(x1 - x0) pixels,
+ * each pixel twice. 22 rows: each line 3 times but lines 3 and 7 twice; 10: lines 2 and 6 twice */
+static void lsdj_scale_zoom(uint16_t *out, const uint8_t *fb, uint32_t x0, uint32_t x1, const uint16_t pal[4],
+                            uint32_t rows)
+{
+    static const uint8_t ROW22[LSDJ_ZROW_H] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7};
+    static const uint8_t ROW10[LSDJ_ZHEAD_H] = {0, 1, 2, 2, 3, 4, 5, 6, 6, 7};
+    const uint8_t *line = rows == LSDJ_ZROW_H ? ROW22 : ROW10;
+    uint32_t w = LSDJ_ZX(x1 - x0), x, r, o;
+    for (r = 0; r < rows; r++) {
+        const uint8_t *f = fb + line[r] * LSDJ_W;
+        if (r && line[r] == line[r - 1u]) {
+            for (x = 0; x < w; x++)
+                out[r * w + x] = out[(r - 1u) * w + x];
+            continue;
+        }
+        for (o = r * w, x = x0; x < x1; x++, o += 2u)
+            out[o] = out[o + 1u] = pal[f[x]];
+    }
+}
+
+/* LSDj's cursor, for the zoomed view to follow: a cell drawn inverted, a tile (8 x 8) mostly in the darkest shade,
+ * left of LSDJ_ZW and right of the row numbers (tile columns 0 and 1, boxed every 4). 1 and the tile rows lo .. hi
+ * that have one (a selection: several), 0 if none under the header */
+#define LSDJ_CURSOR_DARK 40u                  /* of 64: an inverted cell (a letter alone has under 30) */
+static int lsdj_cursor_rows(const uint8_t (*fb)[LSDJ_W], uint32_t *lo, uint32_t *hi)
+{
+    uint32_t r, c, y, x, n, found = 0;
+    for (r = LSDJ_ZHEAD; r < LSDJ_H / 8u; r++)
+        for (c = 2; c < LSDJ_ZW / 8u; c++) {
+            for (n = 0, y = 8u * r; y < 8u * r + 8u; y++)
+                for (x = 8u * c; x < 8u * c + 8u; x++)
+                    n += fb[y][x] == 3u;
+            if (n >= LSDJ_CURSOR_DARK) {
+                if (!found)
+                    *lo = r;
+                *hi = r;
+                found = 1;
+                break;
+            }
+        }
+    return (int)found;
+}
+
+/* the view's top tile row after the cursor moved to lo .. hi, as OPLBend Tracker's: a row at a time, only as far as
+ * it takes to show it (more than a view high: not a cursor, it stays) */
+static uint32_t lsdj_zoom_top(uint32_t top, uint32_t lo, uint32_t hi)
+{
+    if (hi - lo >= LSDJ_ZROWS)
+        return top;
+    if (lo < top)
+        top = lo;
+    if (hi >= top + LSDJ_ZROWS)
+        top = hi + 1u - LSDJ_ZROWS;
+    return top < LSDJ_ZHEAD ? LSDJ_ZHEAD : top > LSDJ_ZTOP_MAX ? LSDJ_ZTOP_MAX : top;
 }
 
 /* speed % over a window: frames run against the Game Boy's frame rate (70224 / 4194304 s = 16742.7 us a frame),

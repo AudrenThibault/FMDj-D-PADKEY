@@ -38,14 +38,17 @@ One of them is on the FM-1 at a time; to change, install the other one.
 |---|---|
 | ◀ ▶ | SELECT knob; HOME / ARP |
 | ▲ ▼ | ALGORITHM knob; SCL / SAVE |
-| A / B | LSDj: the top F / G keys. DMGo: D#5 / F#5 |
+| A / B | F#5 / F5 in D-PAD mode (GLO) |
 | START / SELECT | PLAY / SEQ |
 | LSDj's screens (SELECT + direction) | PRESETS knob; OCT+ / OCT- |
 | DMGo's steps 1 to 16 | the 16 white keys |
-| the menu | GLO |
+| the keyboard as a Game Boy pad (D-PAD mode) | GLO |
+| the menu | ENV |
 | save to flash | REC held for a second |
 
-**GLO** opens a menu over the lower half of the screen while the music plays on: the screen's colours (DMG green,
+**GLO** switches the keyboard to **D-PAD** mode: the cross on the left, A to the right of B, as on a Game Boy
+(F3 left, F#3 up, G3 down, A3 right; SELECT B3, C4, D5; START D#5; B E5, F5; A F#5). GLO again: KEYBOARD, the
+keyboard is a keyboard (DMGo's steps on the white keys). **ENV** opens a menu over the lower half of the screen while the music plays on: the screen's colours (DMG green,
 Pocket, Light, Super Game Boy, Dark), the status bar (FPS, CPU, gaps; off at first), and the emulator's options. It
 is kept in flash. All of it: [docs/lsdj/CONTROLS.md](docs/lsdj/CONTROLS.md).
 

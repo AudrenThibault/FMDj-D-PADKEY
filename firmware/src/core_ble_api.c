@@ -136,6 +136,34 @@ _Static_assert(CORE_BTN_FX == B_FX && CORE_BTN_SCL == B_SCL && CORE_BTN_EDIT == 
 uint32_t core_button_bit(int label) { return label >= 0 && label < NB ? 1u << panel.btn[label] : 0; }
 uint32_t core_play_bit(void) { return 1u << panel.btn[B_PLAY]; }
 uint32_t core_rec_bit(void) { return 1u << panel.btn[B_REC]; }
+#if FMDJ_LEDS
+static void core_led_id(uint32_t id, int level)   /* a key's LED (fm1_led_key's id): dark, the glow or lit */
+{
+    uint32_t p, r;
+    fm1_led_key(id, level == CORE_LED_LIT);
+    for (p = 0; p < FM1_NCOL; p++)
+        for (r = 1; r < 5u; r++)
+            if (FM1_KEYMAP[r][p] == (int8_t)id) {
+                if (level == CORE_LED_GLOW)
+                    fm1_led_dim[p] |= (uint8_t)(1u << r);
+                else
+                    fm1_led_dim[p] &= (uint8_t)~(1u << r);
+            }
+}
+void core_led_button(int label, int level)
+{
+    if (label >= 0 && label < NB)
+        core_led_id(panel.btn[label], level);
+}
+void core_led_note(int n, int level)
+{
+    if (n >= 0 && n < 27)
+        core_led_id(14u + (uint32_t)n, level);
+}
+#else
+void core_led_button(int label, int level) { (void)label; (void)level; }
+void core_led_note(int n, int level) { (void)n; (void)level; }
+#endif
 int32_t core_select_steps(void) { return panel_enc(EN_SELECT); }
 int32_t core_enc_steps(int knob) { return panel_enc(knob == CORE_ENC_PRESET ? EN_PRESET : EN_ALGO); }
 void core_con_puts(const char *s)

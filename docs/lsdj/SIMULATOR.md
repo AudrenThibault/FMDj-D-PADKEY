@@ -24,7 +24,7 @@ panel drawn in the original Game Boy's colours. It is built after Hortator's sim
 - `LOAD` on the status line is 0 %: the page does not model the FM-1's processor, so it says nothing about speed on
   the device.
 - No USB. The firmware's console is there all the same (`sim_con`), and the page uses it: see below.
-- The four knobs on the right, GLO and the keys other than the top F and G do nothing in the LSDj build, as on the
+- The four knobs on the right and the keys other than the top F and G (outside D-PAD mode) do nothing in the LSDj build, as on the
   device; they are drawn dimmed.
 
 ## Songs and saves

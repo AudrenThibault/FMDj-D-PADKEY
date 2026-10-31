@@ -2945,313 +2945,412 @@ fm1_main:
 | goto <+0x16F0>
 fm1_timer5_irq:
 | [--sp] = {rets, r15-r4}
-| sp += -12
-| r2 = 67588
-| r0 = [r2+0]
+| sp += -16
+| r9 = 67588
+| r0 = [r9+0]
+| r1 = r9 + 252  #
+| [sp+12] = r0
+| r0 = <addr>
+| r0 = [r0+0]
+| [r1+0] |= 0x4000
+| r1 = <addr>
+| [r1+24] += 1
+| r1 = <addr>
+| r10 = b[r1+0] (u)
+| r5 = [r9+0]
+| r8 = <addr>
+| r2 = [r8+0]
+| r1 = <addr>
+| r11 = 0x50000  #
+| r4 = b[r1+0] (u)
+| r1 = [r11+0]
+| r6 = r11 + 448
+| r1 = r1 & 0xFFFFF9FF  #
+| r3 = [r6+0]
+| [r11+0] = r1
+| r1 = r3 & 0xFFFFFDBF
+| [r6+0] = r1
+| [r8+0] = r5
+| r1 = 5
+| r1 = r0 / r1 (u)
+| r1 = r1 * 0x5
+| r0 = r0 - r1
+| r7 = r10 + 1  #
 | [sp+8] = r0
-| r0 = <addr>
-| r0 = r2 + 252  #
-| r1 = [r0+0]
-| [r0+0] |= 0x4000
-| r0 = <addr>
-| [r0+24] += 1
-| r0 = <addr>
-| r7 = b[r0+0] (u)
-| r4 = [r2+0]
-| r11 = <addr>
-| r0 = [r11+0]
-| r9 = 0x50000
-| r2 = [r9+0]
-| r10 = r9 + 448
-| r3 = [r10+0]
-| r2 = r2 & 0xFFFFF9FF
-| [r9+0] = r2
-| r2 = r3 & 0xFFFFFDBF
-| [r10+0] = r2
-| [r11+0] = r4
-| r2 = 5
-| r2 = r1 / r2 (u)
-| r2 = r2 * 0x5
-| r1 = r1 - r2
-| r12 = r7 + 1  #
-| [sp+4] = r1
 | r3 = 0
 | r14 = 0
-| if (r12 != 11) {
-| r14 = r12
-| r1 = 2048
-| [sp] = r4
-| r1 = r1 << r14
-| r2 = 1
-| r2 = r2 << r14
-| r0 = r4 - r0
-| r4 = 3600
-| r5 = r3 + 1
-| if (r3 > 6) goto <+0xA2>
-| r6 = r4 << r3
-| r3 = r5
-| if (r0 >= r6) goto <+0x92>
-| r3 = r11 + 4
-| r4 = r5 << 2
-| r3 += r4
-| [r3+0] += 1
+| if (r7 != 11) {
+| r14 = r7
+| r0 = 2048
+| [sp+4] = r5
+| r0 = r0 << r14
+| r1 = 1
+| r15 = r1 << r14
+| r2 = r5 - r2
+| r5 = 3600
+| r6 = r3 + 1
+| if (r3 > 6) goto <+0xAC>
+| r1 = r5 << r3
+| r3 = r6
+| if (r2 >= r1) goto <+0x9C>
+| r1 = r8 + 4
+| r3 = r6 << 2
+| r1 += r3
+| [r1+0] += 1
 | if (r14 >= 2) {
-| r1 = 0
-| r3 = [r11+4]
-| if (r0 > r3) {
-| [r11+4] = r0
-| r3 = r7 << 2
-| r3 += r11
-| r3 += 40
-| [r3+0] += r0
-| r1 ^= r2  #
-| r4 = [r3+44]
-| r15 = 65535
-| if (r0 > r4) {
-| [r3+44] = r0
-| r2 = [r9+4]
-| r0 = r1 ^ r15
+| r0 = 0
+| r1 = [r8+4]
+| if (r2 > r1) {
+| [r8+4] = r2
+| r1 = r10 << 2
+| r1 += r8
+| r3 = r1 + 40
+| [r3+0] += r2
+| r1 = [r3+44]
+| if (r2 > r1) {
+| [r3+44] = r2
+| r1 = [r11+4]
 | r8 = <addr>
-| r1 = r2 & 0x1
-| r2 = r2 >> 4
-| r3 = r9 + 68
-| r2 = r2 & 0x1E  #
+| r12 = r10 + r8
+| r2 = r1 & 0x1
+| r3 = r11 + 68
+| r1 = r1 >> 4
+| r1 = r1 & 0x1E  #
 | r3 = [r3+0]
 | r1 |= r2
-| r4 = r7 + r8
 | r2 = r3 >> 2
 | r2 = r2 & 0x20
 | r1 |= r2
 | r1 = r1 ^ 0x3F
-| b[++r4=20] = r1
-| if (r7 != 0) goto <+0x13A>
+| b[++r12=20] = r1
+| r2 = <addr>
+| r6 = <addr>
+| r5 = <addr>
+| [sp] = r7
+| if (r10 == 0) goto <+0x12C>
+| r3 = b[r2+0] (u)
+| goto <+0x144>
+| r3 = 0
+| b[r2+0] = r3
 | r1 = <addr>
-| r2 = 0
-| b[r1+0] = r2
+| h[r1+0] = r3
+| b[r6+0] = r3
+| h[r5+0] = r3
 | r1 = <addr>
-| h[r1+0] = r2
+| b[r1+0] = r3
+| r7 = <addr>
+| r13 = b[r10+r7] (u)
 | r1 = <addr>
-| b[r1+0] = r2
-| r1 = <addr>
-| h[r1+0] = r2
-| r1 = <addr>
-| b[r1+0] = r2
+| r1 = b[r10+r1] (u)
+| r0 = r0 ^ r15
+| r15 = r1 & ~r13
 | r1 = 0
-| r2 = 16
-| r13 = 0
+| r2 = 0
+| if (r3 == 0) goto <+0x170>
+| r2 = h[r5+0] (u)
+| r2 *= r4  #
+| r5 = b[r6+0] (u)
+| r2 += r5
+| r2 = r2 >> 8
+| r5 = r9 + -2053
+| r0 ^= r5
+| if (r15 == 0) goto <+0x254>
+| r6 = [r9+0]
+| r5 = [r11+0]
+| r7 = r15 | r13
+| r13 = r7 << 8
+| r1 = r13 >> 9
+| r5 <= insert(r1, p:9, l:2)
+| r15 = r11 + 448
+| r1 = [r15+0]
+| [r11+0] = r5
+| r5 = r7 << 3
+| r5 = r5 & 0x40
+| r7 = r7 << 5
+| r7 = r7 & 0x200
+| r5 |= r7
+| r1 = r1 & 0xFFFFFDBF
+| r1 |= r5
+| [r15+0] = r1
+| if (r3 == 0) goto <+0x1E2>
+| r7 = r13 & 0x600
+| r1 = 0
 | call <fm1__sr_bits>
-| [r9+0] |= 0x2
-| [r9+0] &= 0xFFFFFFFD
-| r0 = [r9+0]
-| r1 = [r10+0]
-| r0 = r0 & 0xFFFFF9FF
-| [r9+0] = r0
-| r0 = r1 & 0xFFFFFDBF
-| [r10+0] = r0
+| r1 = [r11+0]
+| r3 = [r15+0]
+| r1 = r1 & 0xFFFFF9FF
+| r1 |= r7
+| [r11+0] = r1
+| r1 = r3 & 0xFFFFFDBF
+| r1 |= r5
+| [r15+0] = r1
+| r1 = r2
+| goto <+0x1E4>
+| r1 = 0
+| r2 = r4
+| call <fm1__sr_bits>
+| r7 = <addr>
+| r5 = <addr>
+| r1 = [r9+0]
+| r1 = r1 - r6
+| if (r4 != 16) goto <+0x204>
+| if (r<addr>
+| r2 = [r11+0]
+| r3 = [r15+0]
+| r2 = r2 & 0xFFFFF9FF
+| [r11+0] = r2
+| r2 = r3 & 0xFFFFFDBF
+| [r15+0] = r2
+| if (r<addr>
+| r2 = r4 + -1
+| if (r4 != 0) goto <+0x23E>
+| r2 = r4
+| goto <+0x23E>
+| r2 = 1
+| r3 = 1
+| if (r1 == 77) {
+| r3 = 0
+| if (r4 >= 16) {
+| r2 = 0
+| r2 &= r3
+| r2 += r4
+| r2 = r5 + 228  #
+| b[r7+0] = r2
+| [r2+0] += 1
+| [r2+4] += r1
+| r1 = r4
+| r7 = <addr>
+| r2 = 16
+| call <fm1__sr_bits>
+| [r11+0] |= 0x2
+| [r11+0] &= 0xFFFFFFFD
+| r0 = b[r14+r7] (u)
+| r1 = [r11+0]
+| r2 = r0 << 8
+| r2 = r2 >> 9
+| r1 <= insert(r2, p:9, l:2)
+| r2 = r11 + 448
+| r3 = r2
+| r2 = [r3+0]
+| [r11+0] = r1
+| r1 = r0 << 3
+| r1 = r1 & 0x40
+| r0 = r0 << 5
+| r0 = r0 & 0x200
+| r0 |= r1
+| r1 = r2 & 0xFFFFFDBF
+| r0 |= r1
+| [r3+0] = r0
 | r0 = <addr>
 | b[r0+0] = r14
 | r0 = <addr>
-| r9 = b[r4+0] (u)
-| r0 += r7
-| r14 = r0 + 11
+| r0 += r10
+| r11 = b[r12+0] (u)
+| r13 = r0 + 11
 | r2 = 1
-| r0 = b[r14++=11] (s)
+| r10 = 0
+| r3 = b[r13++=11] (s)
 | ifs (r<addr>
-| r10 = r0 + -14
-| r7 = r0.b0 (u)
-| r3 = r10
-| if (r7 <= 13) {
-| r3 = r0
-| r5 = r8 + 4
-| r4 = r8
-| if (r7 <= 13) {
-| r4 = r5
-| r1 = [r4+0]
-| r4 = r1 & (1 << r3)
-| r5 = 1
-| r3 = r5 << r3
-| r6 = 1
-| if ((r1 & r3) == 0) {
-| r6 = 0
-| r1 = r5 << r2
-| if ((r1 & r9) == 0) {
-| r5 = 0
-| r1 = r5 ^ r6
-| r0 += r8
-| r0 += 31
-| if (r1 == 0) goto <+0x234>
-| r5 = 1
-| if (r4 == 0) goto <+0x1D0>
-| r5 = 0
-| if (r<addr>
-| if (r5 == 0) goto <+0x1E8>
-| r1 = b[r0+0] (u)
-| if (r1 != 0) goto <+0x1E8>
-| r1 = r15 + 2053
-| r5 = r8 + 72  #
-| r1 = [r1+0]
-| [r5+r10<<2] = r1
-| r1 = b[r0+0] (u)
-| r5 = r1 + 1
-| b[r0+0] = r5
-| r6 = 8
-| if (r4 != 0) goto <+0x1F4>
-| r6 = 2
-| r1 = r5.b0 (u)
-| if (r<addr>
-| b[r0+0] = r13
-| if (r<addr>
-| if (r4 != 0) goto <+0x22E>
-| r0 = r15 + 2053
-| r1 = r8 + 72  #
-| r0 = [r0+0]
-| r1 = [r1+r10<<2]
-| [r8+16] |= r3
-| r4 = r11 + 196
-| [r4+0] += 1
-| r0 = r0 - r1
-| [r4+4] += r0
-| r1 = [r4+8]
-| if (r0 > r1) {
-| [r11+204] = r0
-| [r8+0] ^= r3
-| goto <+0x24E>
-| b[r0+0] = r13
-| goto <+0x24E>
-| [r8+4] ^= r3
-| r5 = r8 + 8
-| r0 = r8 + 12
-| if (r4 != 0) goto <+0x24A>
-| r0 = r5
-| [r0+0] |= r3
-| r2 += 1
-| if (r2 != 5) goto <+0x180>
-| if (r12 != 11) goto <+0x3C2>
-| r1 = <addr>
-| r12 = 16770
+| r12 = r3 + -14
+| r5 = r3.b0 (u)
+| r4 = r12
+| if (r5 <= 13) {
+| r4 = r3
+| r6 = r8 + 4
+| r0 = r8
+| if (r5 <= 13) {
+| r0 = r6
+| r1 = [r0+0]
+| r6 = r1 & (1 << r4)
+| r0 = 1
+| r4 = r0 << r4
+| r7 = 1
+| if ((r1 & r4) == 0) {
 | r7 = 0
-| goto <+0x272>
-| ifs (r5 > -1) goto <+0x356>
-| r0 = b[r10+0] (u)
-| r0 += -2
-| goto <+0x326>
-| r3 = r8 + 20  #
-| r2 = b[r1+0] (u)
-| r2 = b[r2+r3] (u)
-| r4 = b[r1+2] (u)
-| r5 = b[r1+1] (u)
-| r3 = b[r4+r3] (u)
-| r2 >>= r5  #
-| r4 = b[r1+3] (u)
-| r2 = r2 << 1
-| r3 >>= r4
+| r1 = r0 << r2
+| if ((r1 & r11) == 0) {
+| r0 = 0
+| r0 ^= r7
+| r1 = r3 + r8
+| r3 = r1 + 31
+| if (r0 == 0) goto <+0x36E>
+| r0 = 1
+| if (r6 == 0) goto <+0x302>
+| r0 = 0
+| if (r<addr>
+| if (r0 == 0) goto <+0x318>
+| r0 = b[r3+0] (u)
+| if (r0 != 0) goto <+0x318>
+| r0 = [r9+0]
+| r1 = r8 + 72
+| [r1+r12<<2] = r0
+| r0 = b[r3+0] (u)
+| r0 += 1
+| b[r3+0] = r0
+| r7 = 8
+| if (r6 != 0) goto <+0x324>
+| r7 = 2
+| r0 = r0.b0 (u)
+| if (r<addr>
+| b[r3+0] = r10
+| if (r<addr>
+| if (r6 != 0) goto <+0x368>
+| r0 = [r9+0]
+| r1 = r8 + 72
+| r1 = [r1+r12<<2]
+| [r8+16] |= r4
+| r3 = <addr>
+| r3 = r3 + 196
+| [r3+0] += 1
+| r0 = r0 - r1
+| [r3+4] += r0
+| r1 = [r3+8]
+| if (r0 > r1) {
+| r1 = <addr>
+| [r1+204] = r0
+| [r8+0] ^= r4
+| goto <+0x388>
+| b[r3+0] = r10
+| goto <+0x388>
+| [r8+4] ^= r4
+| r3 = r8 + 8
+| r0 = r8 + 12
+| if (r6 != 0) goto <+0x384>
+| r0 = r3
+| [r0+0] |= r4
+| r2 += 1
+| if (r2 != 5) goto <+0x2B2>
+| r0 = [sp]
+| if (r0 != 11) goto <+0x50E>
+| r12 = 0
+| r1 = <addr>
+| r10 = 16770
+| r7 = 0
+| goto <+0x3B0>
+| ifs (r3 > -1) goto <+0x4A4>
+| r2 = b[r15+0] (u)
+| r2 += -2
+| goto <+0x46C>
+| r2 = r8 + 20  #
+| r0 = b[r1+0] (u)
+| r0 = b[r0+r2] (u)
+| r3 = b[r1+2] (u)
+| r4 = b[r1+1] (u)
+| r2 = b[r3+r2] (u)
+| r0 >>= r4  #
+| r3 = b[r1+3] (u)
+| r0 = r0 << 1
+| r2 >>= r3
 | r6 = r7 + r8
-| r4 = r6 + 187
-| r2 = r2 & 0x2  #
-| r5 = b[r4+0] (u)
-| r3 = r3 & 0x1
-| r2 |= r3
-| if (r2 != r5) goto <+0x32C>
-| r14 = r6
-| r3 = b[++r14=180] (u)
-| if (r3 == 255) {
-| b[r14+0] = r2
-| b[r6+194] = r2
-| r3 = r7 << 1
-| r3 += r8
-| r5 = r3
-| r0 = h[++r5=202] (u)
-| r10 = r6 + 216
-| if (r0 == r15) goto <+0x2E8>
-| r0 = h[r5+0] (u)
-| r0 += 1
-| r9 = uextra(r0, p:0, l:16)
-| h[r5+0] = r0
-| if (r9 != 900) goto <+0x2E8>
+| r11 = r6 + 187
+| r3 = b[r11+0] (u)
+| r0 = r0 & 0x2
+| r2 = r2 & 0x1
+| r0 |= r2
+| if (r0 != r3) goto <+0x472>
 | r5 = r6
-| r0 = b[++r5=194] (u)
-| if (r2 != r0) {
-| b[r5+0] = r2
-| b[r10+0] = r13
-| r0 = b[r14+0] (u)
-| if (r2 == r0) goto <+0x3B2>
-| r0 = b[r14+0] (u)
-| r0 = r0 << 2
-| r5 = r0 | r2
-| r0 = r12 >> r5
-| if ((r0 & 1) != 0) goto <+0x338>
-| r0 = 10260
-| r0 >>= r5
-| if ((r0 & 1) != 0) goto <+0x340>
-| r0 = r7 << 2
-| r0 += r11
-| r0 = r0 + 168
-| [r0+0] += 1
-| r0 = b[r4+29] (s)
-| r5 = b[r4+29] (s)
+| r2 = b[++r5=180] (u)
+| if (r2 == 255) {
+| b[r5+0] = r0
+| b[r6+194] = r0
+| r2 = r7 << 1
+| r13 = r2 + r8
+| r3 = r13
+| r2 = h[++r3=202] (u)
+| r15 = r6 + 216
+| r4 = r9 + -2053
+| if (r2 == r4) goto <+0x42C>
+| r2 = h[r3+0] (u)
+| r2 += 1
+| r14 = uextra(r2, p:0, l:16)
+| h[r3+0] = r2
+| if (r14 != 900) goto <+0x42C>
+| r3 = r6
+| r2 = b[++r3=194] (u)
+| if (r0 != r2) {
+| b[r3+0] = r0
+| b[r15+0] = r12
+| r2 = b[r5+0] (u)
+| if (r0 == r2) goto <+0x4FE>
+| r2 = b[r5+0] (u)
+| r2 = r2 << 2
+| r3 = r2 | r0
+| r2 = r10 >> r3
+| if ((r2 & 1) != 0) goto <+0x480>
+| r2 = 10260
+| r2 >>= r3
+| if ((r2 & 1) != 0) goto <+0x488>
+| r2 = r7 << 2
+| r3 = <addr>
+| r2 += r3
+| r2 = r2 + 168
+| [r2+0] += 1
+| r2 = b[r11+29] (s)
+| r3 = b[r11+29] (s)
 | ifs (r<addr>
-| r0 = r5 + 2
-| b[r10+0] = r0
-| goto <+0x356>
-| r2 = r8 + 202  #
-| b[r4+0] = r2
-| h[r2+r7<<1] = r13
-| goto <+0x3B2>
-| r0 = b[r10+0] (u)
-| r0 += 1
-| goto <+0x346>
-| r0 = b[r10+0] (u)
-| r0 += -1
-| b[r10+0] = r0
-| r0 = r7 << 2
-| r0 += r11
-| r0 = r0 + 140
-| [r0+0] += 1
-| b[r14+0] = r2
-| r0 = b[r4+29] (s)
-| ifs (r0 > 100) goto <+0x36A>
-| r0 = b[r4+29] (s)
-| ifs (r0 > -101) goto <+0x36E>
-| b[r10+0] = r13
-| r0 = b[r6+194] (u)
-| if (r2 != r0) goto <+0x3B2>
-| r0 = b[r4+29] (s)
-| r2 = b[r4+29] (s)
-| r5 = 0x0 - r2
-| ifs (r0 >= 0) {
-| r5 = r2
-| r2 = 0
+| r2 = r3 + 2
+| b[r15+0] = r2
+| goto <+0x4A4>
+| b[r11+0] = r0
+| r0 = r8 + 202
+| h[r0+r7<<1] = r12
+| goto <+0x4FE>
+| r2 = b[r15+0] (u)
+| r2 += 1
+| goto <+0x48E>
+| r2 = b[r15+0] (u)
+| r2 += -1
+| b[r15+0] = r2
+| r2 = r7 << 2
+| r3 = <addr>
+| r2 += r3
+| r2 = r2 + 140
+| [r2+0] += 1
+| b[r5+0] = r0
+| r2 = b[r11+29] (s)
+| ifs (r2 > 100) goto <+0x4B6>
+| r2 = b[r11+29] (s)
+| ifs (r2 > -101) goto <+0x4BA>
+| b[r15+0] = r12
+| r2 = b[r6+194] (u)
+| if (r0 != r2) goto <+0x4FE>
+| r2 = b[r11+29] (s)
+| r0 = b[r11+29] (s)
+| r5 = 0x0 - r0
+| ifs (r2 >= 0) {
+| r5 = r0
+| r0 = 0
 | ifs (r5 >= 2) {
 | r0 = r5 + 2
 | r2 = 4
-| r2 = r0 / r2 (s)
-| r5 = h[r3+224] (u)
-| r0 = b[r4+29] (s)
-| r4 = 0x0 - r2
-| ifs (r0 >= 0) {
-| r4 = r2
-| r0 = r4 + r5
-| h[r3+224] = r0
-| b[r10+0] = r13
+| r0 = r0 / r2 (s)
+| r3 = h[r13+224] (u)
+| r2 = b[r11+29] (s)
+| r4 = 0x0 - r0
+| ifs (r2 >= 0) {
+| r4 = r0
+| r0 = r4 + r3
+| h[r13+224] = r0
+| b[r15+0] = r12
 | r7 += 1
 | r1 += 4
-| if (r7 != 7) goto <+0x272>
+| if (r7 != 7) goto <+0x3B0>
 | r0 = r8 + 240
 | [r0+0] += 1
-| r0 = r15 + 2053
-| r0 = [r0+0]
-| r1 = [sp]
+| r0 = [r9+0]
+| r1 = [sp+4]
 | r0 = r0 - r1
-| r1 = r11 + 128
+| r2 = <addr>
+| r1 = r2 + 128
 | [r1+0] += r0
 | [r1+8] += 1
 | r1 = [r1+4]
 | if (r0 > r1) {
-| [r11+132] = r0
+| [r2+132] = r0
 | r2 = <addr>
 | r1 = [r2+0]
 | r0 = <addr>
-| r5 = [sp+8]
+| r5 = [sp+12]
 | r1 = r5 - r1  #
 | r3 = [r0+0]
 | r1 += r3
@@ -3265,10 +3364,10 @@ fm1_timer5_irq:
 | [r0+0] = r1
 | [r3+0] += 1
 | r4 = r1 >> 6
-| if (r4 > 374) goto <+0x40C>
+| if (r4 > 374) goto <+0x55C>
 | r8 = <addr>
-| r4 = [sp+4]
-| if (r4 != 0) goto <+0x428>
+| r4 = [sp+8]
+| if (r4 != 0) goto <+0x578>
 | [r8+0] |= 0x1
 | r2 = <addr>
 | r0 = [r2+0]
@@ -3285,36 +3384,35 @@ fm1_timer5_irq:
 | r0 = r1
 | r1 = [r3+16]
 | [r2+0] = r0
-| if (r1 == 0) goto <+0x478>
+| if (r1 == 0) goto <+0x5C6>
 | [r3+12] += 1
-| if (r4 != 0) goto <+0x464>
+| if (r4 != 0) goto <+0x5B4>
 | call <uac_service>
-| r0 = r15 + 2053
-| r0 = [r0+0]
+| r0 = [r9+0]
 | r0 = r0 - r5
 | r1 = <addr>
 | [r1+0] += r0
-| goto <+0xC72>
+| goto <+0xDC0>
 | r0 = [r8+0]
-| if ((r0 & 0x1) == 0) goto <+0xB64>
+| if ((r0 & 0x1) == 0) goto <+0xCB2>
 | r5 = <addr>
 | r1 = b[r5+0] (u)
-| if (r1 == 0) goto <+0xB64>
+| if (r1 == 0) goto <+0xCB2>
 | r10 = 0x11800
 | r0 = [r10+0]
-| if ((r0 & 8192) != 0) goto <+0x4AC>
+| if ((r0 & 8192) != 0) goto <+0x5FA>
 | r0 = [r5+40]
 | r0 += 1
 | [r5+40] = r0
 | r1 = [r5+48]
 | if (r0 > r1) {
 | [r5+48] = r0
-| goto <+0x4B8>
+| goto <+0x606>
 | [r10+0] |= 0x1000
 | [r5+32] += 1
 | [r5+40] = 0x0
 | r0 = b[r5+1] (u)
-| if (r0 == 0) goto <+0x51C>
+| if (r0 == 0) goto <+0x66A>
 | r0 = <addr>
 | r1 = [r0+0]
 | r1 += 1
@@ -3332,18 +3430,18 @@ fm1_timer5_irq:
 | r0 = r0 & 0x700
 | r0 |= r4
 | r2 = r0.l (u)
-| if (r1 != r2) goto <+0x512>
+| if (r1 != r2) goto <+0x660>
 | r0 = h[r5+62] (u)
 | r0 += 1
 | r1 = r0.l (u)
 | h[r5+62] = r0
 | if (r<addr>
 | r0 = b[r5+65] (u)
-| if (r0 != 0) goto <+0x51C>
+| if (r0 != 0) goto <+0x66A>
 | r0 = 1
 | b[r5+65] = r0
 | [r5+56] += 1
-| goto <+0x51C>
+| goto <+0x66A>
 | r1 = r5
 | h[++r1=60] = r0
 | h[r1+2] = r6
@@ -3368,7 +3466,7 @@ fm1_timer5_irq:
 | r12 = <addr>
 | r11 = <addr>
 | r4 = <addr>
-| if ((r7 & 4) == 0) goto <+0x5F2>
+| if ((r7 & 4) == 0) goto <+0x740>
 | [r5+16] += 1
 | r1_r0 = 0
 | r7 = 0
@@ -3411,9 +3509,9 @@ fm1_timer5_irq:
 | call <sie_wr>
 | r13 = <addr>
 | r15 = <addr>
-| if ((r6 & 1) == 0) goto <+0x6B2>
+| if ((r6 & 1) == 0) goto <+0x800>
 | r0 = b[r5+3] (u)
-| if (r0 == 0) goto <+0x612>
+| if (r0 == 0) goto <+0x760>
 | r1 = b[r5+2] (u)
 | r0 = 0
 | r6 = 0
@@ -3426,20 +3524,20 @@ fm1_timer5_irq:
 | r0 = 17
 | call <sie_rd>
 | r6 = r0
-| if ((r6 & 4) != 0) goto <+0x63A>
-| if ((r6 & 16) != 0) goto <+0x64E>
+| if ((r6 & 4) != 0) goto <+0x788>
+| if ((r6 & 16) != 0) goto <+0x79C>
 | r0 = b[r5+4] (u)
-| if (r0 == 0) goto <+0x662>
-| if ((r6 & 2) != 0) goto <+0x6B2>
+| if (r0 == 0) goto <+0x7B0>
+| if ((r6 & 2) != 0) goto <+0x800>
 | call <e0_chunk>
-| goto <+0x6B2>
+| goto <+0x800>
 | r0 = 17
 | r1 = 0
 | call <sie_wr>
 | b[r5+4] = r7
 | b[r12+8] = r7
 | b[r11+6] = r7
-| goto <+0x6B2>
+| goto <+0x800>
 | r0 = 17
 | r1 = 128
 | call <sie_wr>
@@ -3447,24 +3545,24 @@ fm1_timer5_irq:
 | b[r5+4] = r0
 | b[r12+8] = r0
 | b[r11+6] = r0
-| if ((r6 & 1) == 0) goto <+0x6B2>
+| if ((r6 & 1) == 0) goto <+0x800>
 | ssync
 | r0 = b[r12+8] (u)
-| if (r0 == 0) goto <+0x692>
+| if (r0 == 0) goto <+0x7E0>
 | r0 = 22
 | call <sie_rd>
-| if (r0 == 0) goto <+0x68A>
+| if (r0 == 0) goto <+0x7D8>
 | r1 = 0
 | r2 = b[r1+r4] (u)
 | b[r1+r12] = r2
 | r1 += 1
-| if (r1 > 6) goto <+0x68A>
+| if (r1 > 6) goto <+0x7D8>
 | if (r<addr>
 | r0 = 0
 | b[r12+8] = r0
-| goto <+0x6A2>
+| goto <+0x7F0>
 | r0 = b[r11+6] (u)
-| if (r0 == 0) goto <+0xCCE>
+| if (r0 == 0) goto <+0xE1C>
 | r0 = 0
 | b[r11+6] = r0
 | r0 = 14
@@ -3473,10 +3571,10 @@ fm1_timer5_irq:
 | r0 = 17
 | r1 = 72
 | call <sie_wr>
-| if ((r14 & 2) != 0) goto <+0x6BE>
+| if ((r14 & 2) != 0) goto <+0x80C>
 | r0 = b[r5+92] (u)
-| if (r0 != 0) goto <+0x6C4>
-| goto <+0x944>
+| if (r0 != 0) goto <+0x812>
+| goto <+0xA92>
 | r0 = 1
 | b[r5+92] = r0
 | r0 = 14
@@ -3487,13 +3585,13 @@ fm1_timer5_irq:
 | r4 = r0
 | r0 = 21
 | call <sie_rd>
-| if ((r4 & 1) != 0) goto <+0x6E6>
+| if ((r4 & 1) != 0) goto <+0x834>
 | r0 = 0
 | b[r5+92] = r0
-| goto <+0x944>
+| goto <+0xA92>
 | r0 = r0 << 8
 | r0 |= r4
-| [sp+8] = r0
+| [sp+12] = r0
 | r0 = 22
 | call <sie_rd>
 | r7 = r0
@@ -3511,30 +3609,30 @@ fm1_timer5_irq:
 | r1 = [r1+0]
 | r0 += r1
 | if (r<addr>
-| [sp] = r4
-| [sp+4] = r14
+| [sp+4] = r4
+| [sp+8] = r14
 | if (r<addr>
 | r14 = 0
 | r0 = 3
 | r15 = <addr>
 | r12 = <addr>
 | r8 = 0
-| goto <+0x776>
-| if (r2 != 15) goto <+0x75C>
+| goto <+0x8C4>
+| if (r2 != 15) goto <+0x8AA>
 | r0 = r6 + -248
-| if (r0 > 4) goto <+0x8F2>
-| if (r0 == 1) goto <+0x8F2>
+| if (r0 > 4) goto <+0xA40>
+| if (r0 == 1) goto <+0xA40>
 | r0 = 1
 | call <midi_enqueue>
-| goto <+0x8F2>
+| goto <+0xA40>
 | r1 = r1 << 16
-| if ((r1 & 8388608) != 0) goto <+0x8F2>
+| if ((r1 & 8388608) != 0) goto <+0xA40>
 | r1 = r6 >> 4
-| if (r1 != r2) goto <+0x8F2>
+| if (r1 != r2) goto <+0xA40>
 | r1 = r2 | 0x1
-| if (r1 == 13) goto <+0x754>
+| if (r1 == 13) goto <+0x8A2>
 | ifs (r<addr>
-| goto <+0x754>
+| goto <+0x8A2>
 | r1 = <addr>
 | r4 = r1
 | r3 = b[r8+r4] (u)
@@ -3549,10 +3647,10 @@ fm1_timer5_irq:
 | r0 <= insert(r4, p:24, l:8)
 | r4 = r3 & 0xFFFFFF0C
 | r2 = r3 & 0xFFFFFF0F
-| if (r4 != 4) goto <+0x8D6>
+| if (r4 != 4) goto <+0xA24>
 | r1 = 3
-| if (r2 == 4) goto <+0x7C2>
-| if (r2 == 7) goto <+0x7C2>
+| if (r2 == 4) goto <+0x910>
+| if (r2 == 7) goto <+0x910>
 | r1 = 2
 | if (r2 != 6) {
 | r1 = 1
@@ -3561,37 +3659,37 @@ fm1_timer5_irq:
 | r3 = r2 << 3
 | r10 = r0 >> r3
 | r3 = uextra(r10, p:0, l:8)
-| if (r3 >= 248) goto <+0x8D0>
-| if ((r10 & 128) != 0) goto <+0x806>
+| if (r3 >= 248) goto <+0xA1E>
+| if ((r10 & 128) != 0) goto <+0x954>
 | r4 = b[r5+91] (u)
-| if (r4 == 0) goto <+0x8D0>
+| if (r4 == 0) goto <+0xA1E>
 | r4 = b[r9+0] (u)
-| if (r4 == 0) goto <+0x840>
-| if (r3 == 240) goto <+0x840>
-| if (r3 == 247) goto <+0x840>
+| if (r4 == 0) goto <+0x98E>
+| if (r3 == 240) goto <+0x98E>
+| if (r3 == 247) goto <+0x98E>
 | r4 = [r15+0]
-| if (r4 > 639) goto <+0x83C>
+| if (r4 > 639) goto <+0x98A>
 | r6 = r4 + 1
 | [r15+0] = r6
 | r6 = <addr>
 | b[r4+r6] = r10
-| goto <+0x840>
-| if (r3 == 240) goto <+0x818>
-| if (r3 == 247) goto <+0x7D8>
+| goto <+0x98E>
+| if (r3 == 240) goto <+0x966>
+| if (r3 == 247) goto <+0x926>
 | b[r5+91] = r14
 | b[r9+0] = r14
-| goto <+0x8D0>
+| goto <+0xA1E>
 | r13 = 1
 | b[r5+91] = r13
 | r6 = 0
 | b[r5+90] = r6
 | r4 = <addr>
 | r4 = b[r4+0] (u)
-| if (r4 == 0) goto <+0x832>
+| if (r4 == 0) goto <+0x980>
 | r13 = 0
 | b[r9+0] = r13
 | [r15+0] = r6
-| goto <+0x7D8>
+| goto <+0x926>
 | b[r9+0] = r14
 | r4 = b[r5+90] (u)
 | if (r4 <= 15) {
@@ -3599,37 +3697,37 @@ fm1_timer5_irq:
 | b[r5+90] = r6
 | r4 += r5
 | b[r4+74] = r10
-| if (r3 != 247) goto <+0x8D0>
+| if (r3 != 247) goto <+0xA1E>
 | r3 = b[r5+90] (u)
-| if (r3 != 6) goto <+0x882>
+| if (r3 != 6) goto <+0x9D0>
 | r6 = 0
 | r4 = b[r6+r12] (u)
 | r7 = r6 + r5
 | r7 = b[r7+74] (u)
 | r6 += 1
-| if (r6 > 5) goto <+0x876>
-| if (r7 == r4) goto <+0x862>
-| if (r7 != r4) goto <+0x882>
+| if (r6 > 5) goto <+0x9C4>
+| if (r7 == r4) goto <+0x9B0>
+| if (r7 != r4) goto <+0x9D0>
 | r3 = 1
 | b[r5+93] = r3
-| goto <+0x8C8>
+| goto <+0xA16>
 | r6 = r5 + 75
-| if (r3 != 6) goto <+0x8AA>
+| if (r3 != 6) goto <+0x9F8>
 | r3 = b[r6+0] (u)
-| if (r3 != 34) goto <+0x8AA>
+| if (r3 != 34) goto <+0x9F8>
 | r3 = b[r6+1] (u)
-| if (r3 != 36) goto <+0x8AA>
+| if (r3 != 36) goto <+0x9F8>
 | r3 = b[r6+2] (u)
-| if (r3 != 53) goto <+0x8AA>
+| if (r3 != 53) goto <+0x9F8>
 | r3 = b[r6+3] (u)
-| if (r3 != 127) goto <+0x8AA>
+| if (r3 != 127) goto <+0x9F8>
 | r3 = 1
 | b[r5+94] = r3
-| goto <+0x8C8>
+| goto <+0xA16>
 | r3 = b[r9+0] (u)
-| if (r3 == 0) goto <+0x8C8>
+| if (r3 == 0) goto <+0xA16>
 | r3 = [r15+0]
-| if (r3 == 0) goto <+0x8C8>
+| if (r3 == 0) goto <+0xA16>
 | r4 = <addr>
 | [r4+0] = r3
 | r3 = <addr>
@@ -3638,7 +3736,7 @@ fm1_timer5_irq:
 | b[r9+0] = r14
 | b[r5+91] = r14
 | if (r<addr>
-| goto <+0x8F2>
+| goto <+0xA40>
 | r4 = r0 >> 8
 | r6 = r4.b0 (u)
 | r4 = r6 + -128
@@ -3653,12 +3751,12 @@ fm1_timer5_irq:
 | r0 = 0
 | b[r5+92] = r0
 | [r5+24] += 1
-| r0 = [sp]
+| r0 = [sp+4]
 | r0 = r0 & 0x8B
 | r1 = r0 | 0x10
 | r0 = 20
 | call <sie_wr>
-| r0 = [sp+8]
+| r0 = [sp+12]
 | r0 = r0 >> 9
 | r1 = r0 << 1
 | r0 = 21
@@ -3667,10 +3765,10 @@ fm1_timer5_irq:
 | r10 = 0x11800
 | r12 = <addr>
 | r13 = <addr>
-| r14 = [sp+4]
+| r14 = [sp+8]
 | r15 = <addr>
 | r0 = b[r5+1] (u)
-| if (r0 == 0) goto <+0xB5C>
+| if (r0 == 0) goto <+0xCAA>
 | r7 = <addr>
 | r9 = r7
 | r0 = [r7+0]
@@ -3678,26 +3776,26 @@ fm1_timer5_irq:
 | r11 = r7
 | r1 = [r7+0]
 | r7 = <addr>
-| if (r0 != r1) goto <+0x978>
+| if (r0 != r1) goto <+0xAC6>
 | r0 = [r7+0]
 | r1 = <addr>
 | r1 = [r1+0]
-| if (r0 == r1) goto <+0xA1C>
+| if (r0 == r1) goto <+0xB6A>
 | r0 = 14
 | r1 = 1
 | call <sie_wr>
 | r0 = 17
 | call <sie_rd>
-| if ((r0 & 1) != 0) goto <+0xA1C>
+| if ((r0 & 1) != 0) goto <+0xB6A>
 | if ((r0 & 0x80) != 0) {
 | r1 = r0 & 0xFFFFFF7F
 | r0 = 17
-| call -3268
+| call -3602
 | r0 = <addr>
 | r1 = [r0+0]
 | r2 = [r7+0]
 | r0 = 0
-| if (r1 == r2) goto <+0x9E8>
+| if (r1 == r2) goto <+0xB36>
 | r1 = <addr>
 | r2 = <addr>
 | r6 = r2
@@ -3716,12 +3814,12 @@ fm1_timer5_irq:
 | r2 = [r6+0]
 | r3 = [r7+0]
 | r0 += 4
-| if (r0 > 63) goto <+0x9E8>
-| if (r2 != r3) goto <+0x9AE>
+| if (r0 > 63) goto <+0xB36>
+| if (r2 != r3) goto <+0xAFC>
 | r1 = <addr>
 | r2 = b[r1+0] (u)
-| if (r2 == 0) goto <+0xC76>
-| if (r0 == 0) goto <+0xA1C>
+| if (r2 == 0) goto <+0xDC4>
+| if (r0 == 0) goto <+0xB6A>
 | csync
 | r1 = <addr>
 | [r10+28] = r1
@@ -3733,11 +3831,11 @@ fm1_timer5_irq:
 | call <sie_wr>
 | [r5+28] += 1
 | r0 = b[r5+1] (u)
-| if (r0 == 0) goto <+0xB5C>
-| if ((r14 & 8) != 0) goto <+0xA2E>
+| if (r0 == 0) goto <+0xCAA>
+| if ((r14 & 8) != 0) goto <+0xB7C>
 | r0 = b[r12+9] (u)
-| if (r0 != 0) goto <+0xA34>
-| goto <+0xAD2>
+| if (r0 != 0) goto <+0xB82>
+| goto <+0xC20>
 | r0 = 1
 | b[r12+9] = r0
 | r0 = 14
@@ -3748,10 +3846,10 @@ fm1_timer5_irq:
 | r5 = r0
 | r0 = 21
 | call <sie_rd>
-| if ((r5 & 1) != 0) goto <+0xA56>
+| if ((r5 & 1) != 0) goto <+0xBA4>
 | r0 = 0
 | b[r12+9] = r0
-| goto <+0xAD2>
+| goto <+0xC20>
 | r0 = r0 << 8
 | r4 = r0 | r5
 | r0 = 22
@@ -3773,7 +3871,7 @@ fm1_timer5_irq:
 | r2 = 0
 | b[r12+9] = r2
 | ssync
-| if (r0 == 0) goto <+0xAB2>
+| if (r0 == 0) goto <+0xC00>
 | r3 = <addr>
 | r6 = b[r2+r15] (u)
 | r7 = [r1+0]
@@ -3793,26 +3891,26 @@ fm1_timer5_irq:
 | r0 = 21
 | call <sie_wr>
 | r0 = b[r12+7] (u)
-| if (r0 == 0) goto <+0xB5C>
+| if (r0 == 0) goto <+0xCAA>
 | r4 = <addr>
 | r0 = [r4+0]
 | r5 = <addr>
 | r1 = [r5+0]
-| if (r0 == r1) goto <+0xB5C>
+| if (r0 == r1) goto <+0xCAA>
 | r0 = 14
 | r1 = 3
 | call <sie_wr>
 | r0 = 17
 | call <sie_rd>
-| if ((r0 & 1) != 0) goto <+0xB5C>
+| if ((r0 & 1) != 0) goto <+0xCAA>
 | if ((r0 & 0x80) != 0) {
 | r1 = r0 & 0xFFFFFF7F
 | r0 = 17
-| call -3640
+| call -3974
 | r1 = [r5+0]
 | r2 = [r4+0]
 | r0 = 0
-| if (r1 == r2) goto <+0xB3E>
+| if (r1 == r2) goto <+0xC8C>
 | r1 = 2047
 | r2 = <addr>
 | r3 = [r5+0]
@@ -3824,8 +3922,8 @@ fm1_timer5_irq:
 | r3 = [r5+0]
 | r6 = [r4+0]
 | r0 += 1
-| if (r0 > 62) goto <+0xB3E>
-| if (r3 != r6) goto <+0xB20>
+| if (r0 > 62) goto <+0xC8C>
+| if (r3 != r6) goto <+0xC6E>
 | csync
 | [r10+44] = r13
 | [r10+20] = r0
@@ -3837,7 +3935,7 @@ fm1_timer5_irq:
 | [r12+16] += 1
 | call <uac_service>
 | r0 = [r8+0]
-| if ((r0 & 2) == 0) goto <+0xC6E>
+| if ((r0 & 2) == 0) goto <+0xDBC>
 | r0 = 73984
 | [r0+0] |= 0x80
 | csync
@@ -3867,36 +3965,36 @@ fm1_timer5_irq:
 | b[r2+0] = r1
 | r1 = 1
 | b[r5+0] = r1
-| goto <+0xC6C>
+| goto <+0xDBA>
 | r0 = [r4+0]
 | r1 = <addr>
 | r1 = b[r0+r1] (u)
 | if (r<addr>
 | r0 = r1 + -248
-| if (r0 > 4) goto <+0xC58>
-| if (r0 == 1) goto <+0xC58>
+| if (r0 > 4) goto <+0xDA6>
+| if (r0 == 1) goto <+0xDA6>
 | r0 = 2
 | call <midi_enqueue>
 | r2 = r4 + 12
 | r1 = r4 + 16
-| if (r0 != 0) goto <+0xBE2>
+| if (r0 != 0) goto <+0xD30>
 | r1 = r2
 | [r1+0] += 1
-| goto <+0xC58>
+| goto <+0xDA6>
 | r0 = r1
-| if ((r0 & 128) != 0) goto <+0xC14>
+| if ((r0 & 128) != 0) goto <+0xD62>
 | r1 = b[r4+24] (u)
-| if (r1 != 0) goto <+0xC58>
+| if (r1 != 0) goto <+0xDA6>
 | r1 = b[r4+20] (u)
-| if (r1 == 0) goto <+0xC58>
+| if (r1 == 0) goto <+0xDA6>
 | r1 = b[r4+21] (u)
-| if (r1 != 2) goto <+0xC3C>
+| if (r1 != 2) goto <+0xD8A>
 | r1 = b[r4+22] (u)
-| if (r1 != 0) goto <+0xC3C>
+| if (r1 != 0) goto <+0xD8A>
 | b[r4+23] = r0
 | r0 = 1
 | b[r4+22] = r0
-| goto <+0xC58>
+| goto <+0xDA6>
 | r2 = 0
 | r3 = 1
 | r7 = 1
@@ -3912,7 +4010,7 @@ fm1_timer5_irq:
 | r3 = 2
 | b[r6+1] = r3
 | b[r6+2] = r2
-| goto <+0xC58>
+| goto <+0xDA6>
 | r0 = 0
 | b[r4+22] = r0
 | r0 = 2
@@ -3931,19 +4029,19 @@ fm1_timer5_irq:
 | r0 += -1
 | [r4+4] = r0
 | [r4+8] += 1
-| if (r0 != 0) goto <+0xBB8>
+| if (r0 != 0) goto <+0xD06>
 | [r8+0] = 0x0
-| sp += 12
+| sp += 16
 | {pc, r15-r4} = [sp++]
 | r2 = <addr>
 | r3 = <addr>
 | r3 = [r3+0]
 | r4 = [r7+0]
-| if (r3 != r4) goto <+0x9F6>
+| if (r3 != r4) goto <+0xB44>
 | r3 = [r11+0]
 | r4 = [r9+0]
-| if (r0 > 63) goto <+0x9F6>
-| if (r3 == r4) goto <+0x9F6>
+| if (r0 > 63) goto <+0xB44>
+| if (r3 == r4) goto <+0xB44>
 | r3 = [r11+0]
 | r3 = r3 & 0x3F
 | r3 = [r2+r3<<2]
@@ -3958,14 +4056,14 @@ fm1_timer5_irq:
 | [r11+0] += 1
 | r3 = b[r1+0] (u)
 | r0 += 4
-| if (r3 == 0) goto <+0xC7C>
-| goto <+0x9F8>
+| if (r3 == 0) goto <+0xDCA>
+| goto <+0xB46>
 | r0 = 0
 | r1 = b[r0+r4] (u)
 | r2 = r0 + r5
 | r0 += 1
 | b[r2+66] = r1
-| if (r0 != 8) goto <+0xCD0>
+| if (r0 != 8) goto <+0xE1E>
 | [r5+20] += 1
 | r0 = r5 + 64
 | r1 = b[r0+9] (u)
@@ -3979,34 +4077,34 @@ fm1_timer5_irq:
 | r4 = b[r0+4] (u)
 | r6 = 32773
 | r0 = <addr>
-| ifs (r1 > r6) goto <+0xD36>
+| ifs (r1 > r6) goto <+0xE84>
 | r6 = 8479
 | ifs (r<addr>
 | r6 += 3
 | ifs (r<addr>
 | r4 = r6 + 1
-| if (r1 == r4) goto <+0x6A2>
+| if (r1 == r4) goto <+0x7F0>
 | r4 = 8705
-| if (r1 == r4) goto <+0xF5A>
-| if (r1 == 32768) goto <+0xF4E>
-| goto <+0x100C>
+| if (r1 == r4) goto <+0x10A8>
+| if (r1 == 32768) goto <+0x109C>
+| goto <+0x115A>
 | ifs (r<addr>
 | r4 = 4294925695
 | r4 += r1
-| if (r4 >= 3) goto <+0xEA8>
-| if (r3 != 1) goto <+0x100C>
+| if (r4 >= 3) goto <+0xFF6>
+| if (r3 != 1) goto <+0x115A>
 | r0 = b[r5+70] (u)
-| if (r0 != 132) goto <+0x100C>
+| if (r0 != 132) goto <+0x115A>
 | r2 = r2.l (u)
 | r0 = <addr>
 | r1 = 3
-| goto <+0xF52>
-| ifs (r1 > 266) goto <+0xEDA>
-| if (r1 == 5) goto <+0xF76>
-| if (r1 != 9) goto <+0x100C>
-| if (r4 > 1) goto <+0x100C>
+| goto <+0x10A0>
+| ifs (r1 > 266) goto <+0x1028>
+| if (r1 == 5) goto <+0x10C4>
+| if (r1 != 9) goto <+0x115A>
+| if (r4 > 1) goto <+0x115A>
 | b[r5+1] = r4
-| if (r4 != 1) goto <+0x1030>
+| if (r4 != 1) goto <+0x117E>
 | r7 = r10
 | r0 = <addr>
 | [r7+28] = r0
@@ -4099,39 +4197,39 @@ fm1_timer5_irq:
 | r0 = 0
 | r1 = 0
 | d[r11+12] = r1_r0
-| goto <+0x1038>
-| ifs (r1 >= 33024) goto <+0xF26>
+| goto <+0x1186>
+| ifs (r1 >= 33024) goto <+0x1074>
 | r0 = r6 + 1
-| if (r1 == r0) goto <+0xF84>
+| if (r1 == r0) goto <+0x10D2>
 | r0 += 2
-| if (r1 != r0) goto <+0x100C>
+| if (r1 != r0) goto <+0x115A>
 | r0 = r5 + 1
-| goto <+0xF48>
-| if (r1 == 33280) goto <+0xF4E>
+| goto <+0x1096>
+| if (r1 == 33280) goto <+0x109C>
 | r0 = 41249
-| if (r1 != r0) goto <+0x100C>
+| if (r1 != r0) goto <+0x115A>
 | r2 = r2.l (u)
 | r1 = 7
 | r0 = r12
-| goto <+0xF52>
+| goto <+0x10A0>
 | r0 = 8480
-| if (r1 == r0) goto <+0xFA0>
+| if (r1 == r0) goto <+0x10EE>
 | r0 = r6
-| if (r1 != r0) goto <+0x100C>
+| if (r1 != r0) goto <+0x115A>
 | r0 = r4 & 0xFFFFFF01
 | b[r12+7] = r0
-| goto <+0x6A2>
+| goto <+0x7F0>
 | r6 = r4
 | r6 <= insert(r3, p:8, l:8)
-| if (r1 == 267) goto <+0xFBE>
-| if (r1 != 513) goto <+0x100C>
+| if (r1 == 267) goto <+0x110C>
+| if (r1 != 513) goto <+0x115A>
 | r0 = b[r5+70] (u)
-| if (r6 != 0) goto <+0xEF6>
-| if (r0 == 132) goto <+0x6A2>
-| if (r6 != 0) goto <+0x100C>
+| if (r6 != 0) goto <+0x1044>
+| if (r0 == 132) goto <+0x7F0>
+| if (r6 != 0) goto <+0x115A>
 | r1 = r0 & 0xFFFFFF0F
-| if (r1 > 3) goto <+0x100C>
-| if (r1 == 0) goto <+0x6A2>
+| if (r1 > 3) goto <+0x115A>
+| if (r1 == 0) goto <+0x7F0>
 | r0 = 14
 | call <sie_wr>
 | r0 = b[r5+70] (s)
@@ -4141,10 +4239,10 @@ fm1_timer5_irq:
 | r0 = 17
 | r1 = 64
 | call <sie_wr>
-| goto <+0x6A2>
-| if (r1 == 33024) goto <+0xF4E>
+| goto <+0x7F0>
+| if (r1 == 33024) goto <+0x109C>
 | r3 = r6 + 261
-| if (r1 != r3) goto <+0x100C>
+| if (r1 != r3) goto <+0x115A>
 | r1 = b[r5+70] (u)
 | if (r1 == 2) {
 | r1 = b[r11+0] (u)
@@ -4152,35 +4250,35 @@ fm1_timer5_irq:
 | b[r0+0] = r1
 | r2 = r2.l (u)
 | r1 = 1
-| goto <+0xF52>
+| goto <+0x10A0>
 | r2 = r2.l (u)
 | r1 = 2
 | call <e0_send>
-| goto <+0x6B2>
-| if (r3 != 1) goto <+0x100C>
+| goto <+0x800>
+| if (r3 != 1) goto <+0x115A>
 | r0 = b[r5+70] (u)
-| if (r0 != 132) goto <+0x100C>
+| if (r0 != 132) goto <+0x115A>
 | r0 = r2.l (u)
-| if (r0 == 0) goto <+0x6A2>
+| if (r0 == 0) goto <+0x7F0>
 | r0 = 1
 | b[r11+6] = r0
-| goto <+0xFAE>
+| goto <+0x10FC>
 | r0 = r4 & 0xFFFFFF7F
 | b[r5+2] = r0
 | r0 = 1
 | b[r5+3] = r0
-| goto <+0x6A2>
+| goto <+0x7F0>
 | r7 = r14
 | r11 = r12
 | r6 = r8
-| if (r3 == 1) goto <+0x1060>
-| if (r3 == 3) goto <+0x101C>
-| if (r3 != 2) goto <+0x100C>
+| if (r3 == 1) goto <+0x11AE>
+| if (r3 == 3) goto <+0x116A>
+| if (r3 != 2) goto <+0x115A>
 | r1 = 249
 | r0 = <addr>
-| goto <+0x107C>
+| goto <+0x11CA>
 | r0 = r2.l (u)
-| if (r0 == 0) goto <+0x6A2>
+| if (r0 == 0) goto <+0x7F0>
 | r0 = 1
 | b[r12+8] = r0
 | r0 = 14
@@ -4188,12 +4286,12 @@ fm1_timer5_irq:
 | call <sie_wr>
 | r0 = 17
 | r1 = 64
-| goto <+0x6AE>
-| if (r6 > 1) goto <+0x1006>
+| goto <+0x7FC>
+| if (r6 > 1) goto <+0x1154>
 | r0 = b[r5+70] (u)
-| if (r0 != 2) goto <+0x1006>
+| if (r0 != 2) goto <+0x1154>
 | r0 = b[r5+1] (u)
-| if (r0 == 0) goto <+0x1006>
+| if (r0 == 0) goto <+0x1154>
 | call <uac_ep4_reset>
 | r0 = 0
 | b[r11+1] = r0
@@ -4204,29 +4302,29 @@ fm1_timer5_irq:
 | r2 = 0
 | r3 = 0
 | d[r11+12] = r3_r2
-| if (r6 == 0) goto <+0x6A2>
+| if (r6 == 0) goto <+0x7F0>
 | [r11+20] += 1
 | [r11+56] = 0xFFFFFFFF
 | [r11+60] = r0
-| goto <+0x6A2>
-| if (r6 == 0) goto <+0x6A2>
+| goto <+0x7F0>
+| if (r6 == 0) goto <+0x7F0>
 | r0 = 14
 | r1 = 0
 | call <sie_wr>
 | r0 = 17
 | r1 = 96
-| goto <+0x6AE>
-| if (r4 == 0) goto <+0x106A>
-| if (r4 == 2) goto <+0x1074>
-| if (r4 != 1) goto <+0x100C>
+| goto <+0x7FC>
+| if (r4 == 0) goto <+0x11B8>
+| if (r4 == 2) goto <+0x11C2>
+| if (r4 != 1) goto <+0x115A>
 | r1 = 42
 | r0 = <addr>
-| goto <+0x107C>
+| goto <+0x11CA>
 | r0 = 9
 | r1 = 0
 | call <sie_wr>
 | r0 = b[r5+1] (u)
-| if (r0 == 1) goto <+0x6A2>
+| if (r0 == 1) goto <+0x7F0>
 | r0 = 0
 | b[r11+1] = r0
 | b[r11+2] = r0
@@ -4235,18 +4333,18 @@ fm1_timer5_irq:
 | b[r11+0] = r0
 | r1 = 0
 | d[r11+12] = r1_r0
-| goto <+0x6A2>
+| goto <+0x7F0>
 | r1 = 18
 | r0 = <addr>
-| goto <+0x107C>
+| goto <+0x11CA>
 | r1 = 4
 | r0 = <addr>
-| goto <+0x107C>
+| goto <+0x11CA>
 | r1 = 16
 | r0 = <addr>
 | r2 = r2.l (u)
-| if (r2 != 0) goto <+0xF52>
-| goto <+0x6A2>
+| if (r2 != 0) goto <+0x10A0>
+| goto <+0x7F0>
 fm1_wdt_feed:
 | r0 = 1
 | r1 = 128

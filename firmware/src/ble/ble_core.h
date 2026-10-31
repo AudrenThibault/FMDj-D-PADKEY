@@ -56,6 +56,15 @@ enum { CORE_BTN_FX, CORE_BTN_SCL, CORE_BTN_ENV, CORE_BTN_LFO, CORE_BTN_EDIT, COR
 uint32_t core_button_bit(int label);
 uint32_t core_play_bit(void);
 uint32_t core_rec_bit(void);
+/* the LEDs: a button by its label (CORE_BTN_*), a note key by its number (0 = F3 .. 26 = G5). Driving them changes
+ * fm1_timer5_irq (the LED scan, dead code while nothing lights them): gate 2's reference
+ * (tests/ble/update_path.ref) was written again with them on; set 0 only with the upstream reference */
+#ifndef FMDJ_LEDS
+#define FMDJ_LEDS 1
+#endif
+enum { CORE_LED_OFF, CORE_LED_GLOW, CORE_LED_LIT };
+void core_led_button(int label, int level);
+void core_led_note(int n, int level);
 int32_t core_select_steps(void);
 /* the ALGORITHM and PRESETS knobs: steps since the last call, + = clockwise (the SELECT knob's come with ble_key) */
 enum { CORE_ENC_ALGO, CORE_ENC_PRESET };

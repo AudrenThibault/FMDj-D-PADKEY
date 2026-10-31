@@ -7,7 +7,7 @@
  *
  * Nothing runs at boot: PLAY starts the Game Boy (ble_key). From then on, each main-loop pass runs one Game Boy
  * frame when the audio ring has room for its sound (the audio ISR plays the ring: lsdj_audio), then sends a few
- * changed line pairs to the screen (1.5x: 240 x 216). The status bar (GLO menu) tells how it keeps up: FPS, CPU, GAPS,
+ * changed line pairs to the screen (1.5x: 240 x 216). The status bar (ENV menu) tells how it keeps up: FPS, CPU, GAPS,
  * the seconds in which the ring ran dry. The emulator is reached only through function pointers set
  * by lsdj_start (gate 4, tools/check_ble_boot.py --lsdj, walks the direct calls from boot).
  *
@@ -28,6 +28,7 @@
 #define LSDJ_POOL __attribute__((section(".pool")))   /* big zero-initialised buffers (app.ld POOL) */
 #endif
 #include "lsdj/lsdj_gb.c"
+#include "lsdj/lsdj_font.h"
 #include "lsdj/lsdj_emu.c"
 #include "lsdj/lsdj_xfer.c"
 #define LSDJ_STORE_FN static __attribute__((noinline))   /* gate 4 finds the flash writers by name */
@@ -44,10 +45,10 @@
 #define GROUPS (LSDJ_H / 2u)                  /* line pairs: 3 screen rows each */
 #define PUSH_MAX 8u                           /* line pairs merged into one transfer (24 rows, <= 11.5 KB) */
 #define STATUS_Y 223u
-#define MENU_G 34u                            /* the GLO menu covers line pairs 34.. (screen rows 106..219); the
-                                               * picture above it runs on */
-#define MENU_Y (y0 + 3u * MENU_G)
+#define MENU_Y 96u                            /* the menu (ENV) covers screen rows 96 .. MENU_END - 1; the picture
+                                               * above it runs on */
 #define MENU_LINE 16u
+#define MENU_END (MENU_Y + 1u + MENU_LINE * (LSDJ_NMI + 1u))
 
 static uint8_t sram[LSDJ_SRAM] LSDJ_POOL;
 static uint8_t fb[LSDJ_H][LSDJ_W] LSDJ_POOL, shown[LSDJ_H][LSDJ_W] LSDJ_POOL;
@@ -57,7 +58,8 @@ static uint16_t pushbuf[2][PUSH_MAX * 3u * 240u] LSDJ_POOL;   /* DMA sources: on
 static lsdj_ring_t ring;
 static void (*volatile run)(void);            /* lsdj_step once started */
 static void (*volatile draw)(void);           /* lsdj_push once started */
-static uint32_t group, buf_i, splash_done;
+static uint32_t group, buf_i, splash_done, splash_ms;
+#define SPLASH_MS 3000u                       /* the start screen, then LSDj starts by itself (PLAY: at once) */
 static uint32_t pad_map[8];                   /* button bit per Game Boy key (JOYPAD order), from KEYS */
 static lsdj_xfer_t xfer;                      /* the console's `ble ...` (lsdj_xfer.c): the page moves songs with it */
 static char xfer_out[LSDJ_XFER_OUT];
@@ -82,7 +84,6 @@ static lsdj_cart_t cart;                      /* the cartridge block: the ROM's 
 static lsdj_bank_t rom_tab[LSDJ_ROM_BANKS];   /* the Game Boy's ROM: the block's, the flash kit banks in its free ones */
 static int prog = LSDJ_PROG_NONE;             /* the program installed (lsdj_gb.c lsdj_prog): LSDj or DMGo */
 static uint32_t save_n;                       /* its save RAM: 128 KiB (LSDj) or 32 KiB (DMGo), the start of sram[] */
-static uint32_t note_a, note_b;               /* the note keys of A and B: LSDj's top F / G, DMGo's D#5 / F#5 */
 static uint8_t with_steps;                    /* DMGo v1: the white keys are its steps (lsdj_steps_*) */
 static lsdj_steps_t steps;
 static uint8_t kit_bank[LSDJ_ST_KMAX], nkit;  /* the ROM's free kit banks in order: flash kit bank j shows as kit_bank[j] */
@@ -91,16 +92,44 @@ static uint8_t kit_buf[LSDJ_BANK] LSDJ_POOL;  /* a kit bank on its way from the 
 /* RGB565, byte-swapped as the panel takes them: shade 0 (light) .. 3 (dark) */
 #define SW(c) ((uint16_t)(((c) >> 8) | ((c) << 8)))
 #define RGB(r, g, b) SW((((r) >> 3) << 11) | (((g) >> 2) << 5) | ((b) >> 3))
-static uint16_t pal[4];                       /* the screen theme's (the GLO menu; lsdj_gb.c LSDJ_THEME_RGB) */
+static uint16_t pal[4];                       /* the screen theme's (the menu; lsdj_gb.c LSDJ_THEME_RGB) */
 
-/* The GLO menu (lsdj_gb.c lsdj_menu_*): open, it covers the picture's lower half and takes the keys; the Game Boy
+/* GLO: KEYBOARD or D-PAD, as OPLBend Tracker's. In KEYBOARD the note keys are a keyboard, no Game Boy key (in
+ * DMGo the white keys are its steps); in D-PAD they are the pad (lsdj_gb.c LSDJ_DPAD_NOTE). Not kept: KEYBOARD at
+ * power-on. */
+static uint8_t dpad;
+static uint32_t notes_mask;                   /* note keys held when the mode changed: not pressed until let go */
+static lsdj_rep_t rep;                        /* the D-PAD cross's repeat (lsdj_gb.c) */
+
+static int glo_led(void)                       /* as OPLBend Tracker's: lit in D-PAD; in KEYBOARD it blinks, the glow
+                                                * then dark, 0.4 s each (where to go for D-PAD) */
+{
+    return dpad ? CORE_LED_LIT : (core_ms() / 400u) & 1u ? CORE_LED_GLOW : CORE_LED_OFF;
+}
+
+static void dpad_leds(void)                    /* as OPLBend Tracker's: GLO (glo_led); the keyboard's keys glow, all
+                                                * of them in KEYBOARD, the pad's in D-PAD */
+{
+    uint32_t pad_keys = 0, i;
+    for (i = 0; i < 8u; i++)
+        pad_keys |= LSDJ_DPAD_NOTE[i];
+    core_led_button(CORE_BTN_GLO, glo_led());
+    for (i = 0; i < 27u; i++)
+        core_led_note((int)i, !dpad || ((pad_keys >> i) & 1u) ? CORE_LED_GLOW : CORE_LED_OFF);
+}
+
+/* The menu, on ENV (lsdj_gb.c lsdj_menu_*): open, it covers the picture's lower half and takes the keys; the Game Boy
  * plays on. Its settings are the layout record's in flash (lsdj_store.c), read at PLAY, written in the step when
  * the menu closes with something changed (never from the key handler: gate 4). */
 static lsdj_menu_t menu;
 static lsdj_set_t set_saved;                  /* what flash holds */
 static uint8_t menu_paint_req, menu_last, set_req, bar_shown;
 static uint8_t menu_mask;                     /* keys down when the menu closed: not the Game Boy's until let go */
-static uint32_t y0 = Y0_BAR;                  /* the picture's first screen row (Y0_BAR, Y0_FULL) */
+static uint32_t y0 = Y0_BAR;                  /* the picture's first screen row (0 zoomed, Y0_BAR, Y0_FULL) */
+static uint8_t zoomed;                        /* the picture as drawn (geometry_set): ZOOM (lsdj_gb.c LSDJ_ZW) */
+static uint32_t g_lines = 2u, g_n = GROUPS;   /* its groups: Game Boy lines, how many (line pairs; zoomed: tile rows) */
+static uint32_t ztop = LSDJ_ZHEAD;            /* zoomed: the first tile row shown under the header (lsdj_zoom_top) */
+static uint32_t zfollow_frame;                /* ... the Game Boy frame the cursor was last looked for in */
 static uint8_t border_req;                    /* the borders to paint (1 the upper, 2 the lower): no status bar */
 
 static struct {
@@ -173,13 +202,13 @@ static char *put_hex(char *b, uint32_t v)
     return b;
 }
 
-/* the status bar (the GLO menu's STATUS BAR, off at first). Left: FPS = Game Boy frames per second (59.7 is real
+/* the status bar (the menu's STATUS BAR, off at first). Left: FPS = Game Boy frames per second (59.7 is real
  * time); CPU = the emulator's time per frame against a Game Boy frame (16.74 ms): over 100 % it cannot keep up,
  * under 100 % it waits for the audio */
 static void status_line(void)
 {
     char b[48], *p = b;
-    if (!menu.set.bar)
+    if (!menu.set.bar || zoomed)
         return;
     p = put_s(p, "FPS ");
     p = put_u(p, st.last_fps10 / 10u);
@@ -201,22 +230,10 @@ static void keys_line(void)
     char b[40], *p;
     st.pad_shown = st.pad;
     st.held_shown = xfer.held;
-    if (!menu.set.bar) {                      /* no status bar: the lower border (a note shows there for its time) */
-        if (st.note[0]) {
-            border_req &= (uint8_t)~2u;
-            core_fill(0, (int)(240u - BORDER), 240, (int)BORDER, CORE_BG);
-            core_text(0, (int)(240u - BORDER), 240, CORE_FONT_S, st.note, CORE_THEME, CORE_BG, 1);
-            bar_shown = 1;
-        } else if (bar_shown) {
-            border_req |= 2u;                 /* (the note gone: the border again) */
-            bar_shown = 0;
-        }
+    if (!menu.set.bar || zoomed)              /* (a note shows in the middle: ann_show) */
         return;
-    }
     bar_shown = 1;
-    if (st.note[0]) {
-        put_s(b, st.note);
-    } else if (xfer.held) {
+    if (xfer.held) {
         put_s(b, "USB");
     } else if (st.pad == 0xFFu) {
         p = put_u(put_s(b, "GAPS "), st.gaps);
@@ -234,7 +251,87 @@ static void keys_line(void)
     core_text(112, (int)STATUS_Y, 128, CORE_FONT_S, b, CORE_THEME, CORE_BG, 0);
 }
 
-/* ---- the GLO menu ---- */
+/* ---- the picture's geometry: zoomed (tile rows: the header 10 screen rows each, then 10 of 22 from ztop; 2x wide)
+ * or not (line pairs, 3 rows each, 1.5x) ---- */
+static int geometry_set(void)                  /* from the settings; 1: it changed (then everything is to be sent) */
+{
+    uint8_t z = menu.set.zoom != 0;
+    uint32_t y = z ? 0u : menu.set.bar ? Y0_BAR : Y0_FULL;
+    border_req = z || menu.set.bar ? 0 : 3u;
+    if (y == y0 && z == zoomed)
+        return 0;
+    y0 = y;
+    zoomed = z;
+    g_lines = z ? 8u : 2u;
+    g_n = LSDJ_H / g_lines;
+    ztop = LSDJ_ZHEAD;
+    group = 0;
+    return 1;
+}
+static uint32_t gx(uint32_t x) { return zoomed ? LSDJ_ZX(x) : LSDJ_SX(x); }   /* Game Boy x -> screen x */
+static uint32_t g_h(uint32_t g)                /* a group's screen rows (0: zoomed, not in the view) */
+{
+    if (!zoomed)
+        return 3u;
+    if (g < LSDJ_ZHEAD)
+        return LSDJ_ZHEAD_H;
+    return g >= ztop && g < ztop + LSDJ_ZROWS ? LSDJ_ZROW_H : 0u;
+}
+static uint32_t g_y(uint32_t g)                /* ... its first screen row (when shown) */
+{
+    if (!zoomed)
+        return y0 + 3u * g;
+    return g < LSDJ_ZHEAD ? g * LSDJ_ZHEAD_H : LSDJ_ZHEAD * LSDJ_ZHEAD_H + (g - ztop) * LSDJ_ZROW_H;
+}
+static int group_dirty(uint32_t g)             /* (one out of the view waits: sent when it comes into it) */
+{
+    uint32_t r, d = 0;
+    if (!g_h(g))
+        return 0;
+    for (r = g * g_lines; r < (g + 1u) * g_lines; r++)
+        d |= dirty[r];
+    return d != 0;
+}
+static int group_span(uint32_t g, uint32_t *x0, uint32_t *x1)   /* changed: 1 and the Game Boy columns [x0, x1) */
+{
+    return zoomed ? lsdj_span_n(fb[8u * g], shown[8u * g], 8u, LSDJ_ZW, x0, x1) : lsdj_span(fb[2u * g], shown[2u * g], x0, x1);
+}
+static uint32_t menu_group(void)               /* the first group the open menu covers */
+{
+    uint32_t g;
+    if (!zoomed)
+        return (MENU_Y - y0) / 3u;
+    for (g = 0; g < g_n; g++)
+        if (g_h(g) && g_y(g) + g_h(g) > MENU_Y)
+            return g;
+    return g_n;
+}
+static void rows_resend(uint32_t ylo, uint32_t yhi)   /* the Game Boy lines on screen rows ylo .. yhi: sent again */
+{
+    uint32_t g;
+    for (g = 0; g < g_n; g++)
+        if (g_h(g) && g_y(g) <= yhi && g_y(g) + g_h(g) > ylo) {
+            memset(shown[g * g_lines], 0xFF, g_lines * LSDJ_W);
+            memset(dirty + g * g_lines, 1, g_lines);
+        }
+}
+static void zoom_follow(void)                  /* zoomed: the view after LSDj's cursor, once a Game Boy frame */
+{
+    uint32_t lo, hi, top;
+    if (!zoomed || st.frames == zfollow_frame)
+        return;
+    zfollow_frame = st.frames;
+    if (!lsdj_cursor_rows(fb, &lo, &hi))
+        return;
+    top = lsdj_zoom_top(ztop, lo, hi);
+    if (top == ztop)
+        return;
+    ztop = top;                               /* moved: all under the header sent again */
+    memset(shown[LSDJ_ZHEAD * 8u], 0xFF, (LSDJ_H - LSDJ_ZHEAD * 8u) * LSDJ_W);
+    memset(dirty + LSDJ_ZHEAD * 8u, 1, LSDJ_H - LSDJ_ZHEAD * 8u);
+}
+
+/* ---- the menu (ENV) ---- */
 static void theme_apply(void)                  /* the theme's colours; the whole picture is sent again */
 {
     uint32_t i;
@@ -245,18 +342,15 @@ static void theme_apply(void)                  /* the theme's colours; the whole
     memset(dirty, 1, sizeof dirty);
 }
 
-static void layout_apply(void)                 /* the picture up with the status bar, in the middle without */
+static void layout_apply(void)                 /* zoomed, or the picture up with the status bar, in the middle without */
 {
-    uint32_t y = menu.set.bar ? Y0_BAR : Y0_FULL;
-    if (y != y0) {                            /* moved: the screen cleared, everything sent again */
-        y0 = y;
+    if (geometry_set()) {                     /* moved: the screen cleared, everything sent again */
         core_fill(0, 0, 240, 240, CORE_BG);
         memset(shown, 0xFF, sizeof shown);
         memset(dirty, 1, sizeof dirty);
         bar_shown = 0;
         menu_paint_req = 1;
     }
-    border_req = menu.set.bar ? 0 : 3u;
 }
 
 static void settings_apply(void)               /* the menu's settings into the emulator, the screen, the status bar */
@@ -276,8 +370,8 @@ static void menu_paint(void)                   /* the box over the picture's low
 {
     char label[16], value[16];
     uint32_t i, y;
-    core_fill(0, (int)MENU_Y, 240, (int)(y0 + 3u * GROUPS - MENU_Y), CORE_BG);
-    core_text(0, (int)MENU_Y + 1, 240, CORE_FONT_S, "MENU  (GLO CLOSES)", CORE_THEME, CORE_BG, 1);
+    core_fill(0, (int)MENU_Y, 240, (int)(MENU_END - MENU_Y), CORE_BG);
+    core_text(0, (int)MENU_Y + 1, 240, CORE_FONT_S, "MENU  (ENV CLOSES)", CORE_THEME, CORE_BG, 1);
     for (i = 0; i < LSDJ_NMI; i++) {
         int sel = i == menu.item;
         y = MENU_Y + 1u + MENU_LINE * (i + 1u);
@@ -304,8 +398,9 @@ static void menu_close(void)
     menu.open = 0;
     menu_mask = menu_last;                    /* (the B that closed it, a direction still held) */
     memset(&knobs, 0, sizeof knobs);          /* (turns meant for the menu) */
-    memset(shown[2u * MENU_G], 0xFF, sizeof shown - sizeof shown[0] * 2u * MENU_G);   /* the picture under it again */
-    memset(dirty + 2u * MENU_G, 1, sizeof dirty - 2u * MENU_G);
+    rows_resend(MENU_Y, 239u);                /* the picture under it again */
+    st.pad_shown = (uint8_t)~st.pad;          /* (and the status bar, which its last line covers) */
+    status_line();
     if (memcmp(&menu.set, &set_saved, sizeof set_saved))
         set_req = 1;                          /* into flash, in the next step */
 }
@@ -358,8 +453,79 @@ static void lsdj_banks(void)                   /* rom_tab: the ROM, and the K fl
     lsdj_xfer_flash();
 }
 
-static void lsdj_note_for(const char *s, uint32_t ms)   /* on the status line now, for ms */
+/* ---- the announcement, as OPLBend Tracker's: a word in big letters in the middle (D-PAD, SAVED 12K...), over the
+ * picture, in a framed box, for its time: its 5 x 7 font (lsdj_font.h) up to 4 times ---- */
+#define ANN_MARGIN 10u
+static char ann[24];
+static uint8_t ann_on;
+static uint32_t ann_ms, ann_for, ann_n, ann_e, ann_tx, ann_ty, ann_bx0, ann_bx1, ann_by0, ann_by1;
+
+/* the box over `rows` screen rows from row y, each w pixels from screen column sx */
+static void ann_paint(uint16_t *out, uint32_t y, uint32_t rows, uint32_t sx, uint32_t w)
 {
+    uint32_t r, x, xa, xb, pitch = (LSDJ_FONT_W + 1u) * ann_e;
+    if (!ann_on || sx > ann_bx1 || sx + w <= ann_bx0 || y > ann_by1 || y + rows <= ann_by0)
+        return;
+    xa = sx > ann_bx0 ? sx : ann_bx0;
+    xb = sx + w - 1u < ann_bx1 ? sx + w - 1u : ann_bx1;
+    for (r = 0; r < rows; r++) {
+        uint32_t ly = y + r;
+        if (ly < ann_by0 || ly > ann_by1)
+            continue;
+        for (x = xa; x <= xb; x++) {
+            uint16_t c = ly == ann_by0 || ly == ann_by1 || x == ann_bx0 || x == ann_bx1 ? pal[3] : pal[0];
+            if (ly >= ann_ty && ly < ann_ty + LSDJ_FONT_H * ann_e && x >= ann_tx && x < ann_tx + ann_n * pitch) {
+                uint32_t cx = (x - ann_tx) % pitch / ann_e, cy = (ly - ann_ty) / ann_e;
+                uint8_t ch = (uint8_t)ann[(x - ann_tx) / pitch];
+                if (cx < LSDJ_FONT_W && ch >= 0x20u && ch < 0x60u && (LSDJ_FONT[ch - 0x20u][cy] & (0x10u >> cx)))
+                    c = pal[3];
+            }
+            out[r * w + x - sx] = c;
+        }
+    }
+}
+
+static void ann_show(const char *s, uint32_t ms)   /* at once (a save holds everything else for a second or two) */
+{
+    uint32_t n = 0, lw, h, y, w, rows;
+    if (ann_on)
+        rows_resend(ann_by0, ann_by1);        /* (the box before, if it was bigger) */
+    while (s[n] && n < sizeof ann - 1u) {
+        ann[n] = s[n];
+        n++;
+    }
+    ann[n] = 0;
+    ann_on = 0;
+    if (!n)
+        return;
+    ann_n = n;
+    ann_e = (240u - 2u * ANN_MARGIN - 4u) / ((LSDJ_FONT_W + 1u) * n);
+    ann_e = ann_e > 4u ? 4u : ann_e ? ann_e : 1u;
+    lw = n * (LSDJ_FONT_W + 1u) * ann_e - ann_e;
+    h = LSDJ_FONT_H * ann_e;
+    ann_tx = (240u - lw) / 2u;
+    ann_ty = (240u - h) / 2u;
+    ann_bx0 = ann_tx - ANN_MARGIN;
+    ann_bx1 = ann_tx + lw + ANN_MARGIN - 1u;
+    ann_by0 = ann_ty - ANN_MARGIN;
+    ann_by1 = ann_ty + h + ANN_MARGIN - 1u;
+    ann_on = 1;
+    ann_ms = core_ms();
+    ann_for = ms;
+    rows_resend(ann_by0, ann_by1);            /* (the picture sent there from now on carries the box) */
+    w = ann_bx1 - ann_bx0 + 1u;
+    rows = (uint32_t)(sizeof pushbuf[0] / sizeof pushbuf[0][0]) / w;
+    for (y = ann_by0; y <= ann_by1; y += rows) {
+        uint32_t k = ann_by1 + 1u - y < rows ? ann_by1 + 1u - y : rows;
+        ann_paint(pushbuf[buf_i], y, k, ann_bx0, w);
+        core_lcd_blit((int)ann_bx0, (int)y, (int)w, (int)k, pushbuf[buf_i]);
+        buf_i ^= 1u;
+    }
+}
+
+static void lsdj_note_for(const char *s, uint32_t ms)   /* in the middle now, for ms */
+{
+    ann_show(s, ms);
     put_s(st.note, s);
     st.note_ms = core_ms();
     st.note_for = ms;
@@ -419,7 +585,7 @@ static void lsdj_restart(void)                 /* `ble go reset`: the Game Boy f
 
 static void lsdj_step(void)
 {
-    uint32_t t0, us, n;
+    uint32_t t0, us, n, notes;
     t0 = core_ticks();                        /* the longest time from one step to the next, in each second */
     us = (t0 - st.step_ticks) / CORE_TICKS_PER_US;
     st.step_ticks = t0;
@@ -452,9 +618,15 @@ static void lsdj_step(void)
         status_line();
     }
     lsdj_xfer_tick(&xfer, core_ms());
-    if (st.note[0] && core_ms() - st.note_ms >= st.note_for) {
+    if (!dpad)                                /* GLO blinking in KEYBOARD */
+        core_led_button(CORE_BTN_GLO, glo_led());
+    if (st.note[0] && core_ms() - st.note_ms >= st.note_for)
         st.note[0] = 0;
-        st.held_shown = (uint8_t)!xfer.held;  /* redraw what the note covered */
+    if (ann_on && core_ms() - ann_ms >= ann_for) {   /* the announcement gone: the picture under it again */
+        ann_on = 0;
+        rows_resend(ann_by0, ann_by1);
+        if (menu.open)
+            menu_paint_req = 1;
     }
     if (st.pad != st.pad_shown || xfer.held != st.held_shown)
         keys_line();
@@ -503,21 +675,30 @@ static void lsdj_step(void)
         t0 = core_ticks();
         st.buttons = core_buttons();
         st.notes = core_notes();
-        st.pad = lsdj_pad_ab(st.buttons, st.notes, pad_map, note_a, note_b) & (uint8_t)~lsdj_knobs_frame(&knobs);
-        if (menu.open) {                      /* the menu takes the keys; the Game Boy gets none, and plays on */
-            menu_keys(st.pad);
+        notes_mask &= st.notes;               /* note keys held when GLO changed the mode: nothing until let go */
+        notes = st.notes & ~notes_mask;
+        if (dpad)                             /* the cross on the note keys (not also on a button) repeats as OPLBend's */
+            st.pad = lsdj_rep_frame(&rep, lsdj_pad_dpad(st.buttons, notes, pad_map),
+                                    (uint8_t)(~lsdj_pad_dpad(0, notes, pad_map) & lsdj_pad_ab(st.buttons, 0, pad_map, 0, 0)));
+        else
+            st.pad = lsdj_pad_ab(st.buttons, notes, pad_map, 0, 0);
+        st.pad &= (uint8_t)~lsdj_knobs_frame(&knobs);
+        if (menu.open || dpad) {              /* the menu takes the keys; in D-PAD the note keys are the pad's */
             if (with_steps && steps.busy)     /* a DMGo step half done: its cursor back now (B stays up) */
                 lsdj_steps_frame(&steps, emu.gb.wram, 0xFF);
             if (with_steps) {
-                lsdj_steps_keys(&steps, st.notes);   /* (white keys held now are not pressed when it closes) */
+                lsdj_steps_keys(&steps, notes);   /* (white keys held now are not pressed when it closes) */
                 steps.n = 0;
             }
+        }
+        if (menu.open) {                      /* the Game Boy gets no key, and plays on */
+            menu_keys(st.pad);
             st.pad = 0xFF;
         } else {
             menu_mask &= (uint8_t)~st.pad;    /* a key held since the menu closed: up for the Game Boy until let go */
             st.pad |= menu_mask;
-            if (with_steps) {                 /* DMGo's step keys: its cursor on the step and B, for a frame */
-                lsdj_steps_keys(&steps, st.notes);
+            if (with_steps && !dpad) {        /* DMGo's step keys: its cursor on the step and B, for a frame */
+                lsdj_steps_keys(&steps, notes);
                 st.pad = lsdj_steps_frame(&steps, emu.gb.wram, st.pad);
             }
         }
@@ -546,7 +727,7 @@ static void lsdj_step(void)
  * which goes out over SPI while the next Game Boy frame runs */
 static void lsdj_push(void)
 {
-    uint32_t k, g0, n, x0, x1, a, b, r;
+    uint32_t k, g0, n, rows, gend, x0, x1, a, b, r, w;
     if (!core_lcd_idle())
         return;
     if (border_req) {                         /* a border, in the theme's lightest shade: one transfer */
@@ -558,31 +739,42 @@ static void lsdj_push(void)
         border_req &= (uint8_t)(top ? ~1u : ~2u);
         return;
     }
-    for (k = 0; k < GROUPS; k++) {            /* only rows marked changed are compared */
+    zoom_follow();
+    gend = menu.open ? menu_group() : g_n;    /* (under the menu: later) */
+    for (k = 0; k < g_n; k++) {               /* only rows marked changed are compared */
         g0 = group;
-        group = group + 1u == GROUPS ? 0 : group + 1u;
-        if (!(dirty[2u * g0] | dirty[2u * g0 + 1u]) || (menu.open && g0 >= MENU_G))   /* (under the menu: later) */
+        group = group + 1u >= g_n ? 0 : group + 1u;
+        if (g0 >= gend || !group_dirty(g0))
             continue;
-        if (lsdj_span(fb[2u * g0], shown[2u * g0], &x0, &x1))
+        if (group_span(g0, &x0, &x1))
             break;
-        dirty[2u * g0] = dirty[2u * g0 + 1u] = 0;   /* changed back: nothing to send */
+        memset(dirty + g0 * g_lines, 0, g_lines);   /* changed back: nothing to send */
     }
-    if (k == GROUPS)
+    if (k == g_n)
         return;                               /* the screen shows the frame */
-    for (n = 1; n < PUSH_MAX && g0 + n < (menu.open ? MENU_G : GROUPS) && (dirty[2u * (g0 + n)] | dirty[2u * (g0 + n) + 1u]) &&
-                lsdj_span(fb[2u * (g0 + n)], shown[2u * (g0 + n)], &a, &b); n++) {
+    rows = g_h(g0);                           /* the groups right below it on screen too, PUSH_MAX x 3 rows at most */
+    for (n = 1; g0 + n < gend && g_h(g0 + n) && g_y(g0 + n) == g_y(g0) + rows && rows + g_h(g0 + n) <= PUSH_MAX * 3u &&
+                group_dirty(g0 + n) && group_span(g0 + n, &a, &b); n++) {
         x0 = a < x0 ? a : x0;
         x1 = b > x1 ? b : x1;
+        rows += g_h(g0 + n);
     }
-    for (k = 0; k < n; k++)
-        lsdj_scale(pushbuf[buf_i] + k * 3u * LSDJ_SX(x1 - x0), fb[2u * (g0 + k)], x0, x1, pal);
-    core_lcd_blit((int)LSDJ_SX(x0), (int)(y0 + 3u * g0), (int)LSDJ_SX(x1 - x0), (int)(3u * n), pushbuf[buf_i]);
+    w = gx(x1) - gx(x0);
+    for (k = 0, r = 0; k < n; r += g_h(g0 + k), k++) {
+        uint16_t *o = pushbuf[buf_i] + r * w;
+        if (zoomed)
+            lsdj_scale_zoom(o, fb[8u * (g0 + k)], x0, x1, pal, g_h(g0 + k));
+        else
+            lsdj_scale(o, fb[2u * (g0 + k)], x0, x1, pal);
+        ann_paint(o, g_y(g0 + k), g_h(g0 + k), gx(x0), w);
+    }
+    core_lcd_blit((int)gx(x0), (int)g_y(g0), (int)w, (int)rows, pushbuf[buf_i]);
     buf_i ^= 1u;
-    for (r = 2u * g0; r < 2u * (g0 + n); r++) {
+    for (r = g_lines * g0; r < g_lines * (g0 + n); r++) {
         memcpy(&shown[r][x0], &fb[r][x0], x1 - x0);
         dirty[r] = 0;                         /* the span covers all of these rows' changes */
     }
-    group = g0 + n == GROUPS ? 0 : g0 + n;
+    group = g0 + n >= g_n ? 0 : g0 + n;
     st.pushes++;
 }
 
@@ -604,8 +796,6 @@ static __attribute__((noinline)) void lsdj_start(void)
         prog = lsdj_prog(h);
         save_n = lsdj_prog_save(prog);
         with_steps = (uint8_t)lsdj_prog_steps(h);
-        note_a = prog == LSDJ_PROG_DMGO ? DMGO_NOTE_A : LSDJ_NOTE_A;
-        note_b = prog == LSDJ_PROG_DMGO ? DMGO_NOTE_B : LSDJ_NOTE_B;
     }
     if (prog == LSDJ_PROG_NONE) {
         st.error = -1;
@@ -615,7 +805,11 @@ static __attribute__((noinline)) void lsdj_start(void)
     }
     r = -1;
     flash_on = core_flash_ptr(LSDJ_ST_BASE) != 0;
-    memset(&menu, 0, sizeof menu);            /* the menu's defaults: DMG green, no status bar, every option on */
+    memset(&menu, 0, sizeof menu);
+    {
+        static const uint8_t none[2] = {0, 0};   /* the menu's defaults: DMG green, zoom on, no status bar, all on */
+        lsdj_set_unpack(&menu.set, none);
+    }
     if (flash_on) {                           /* (reading only: flash is written on REC or a console request) */
         lsdj_store_scan(&flash_ro, &store);
         lsdj_set_unpack(&menu.set, store.set);
@@ -637,8 +831,7 @@ static __attribute__((noinline)) void lsdj_start(void)
     bar_shown = 0;
     emu_mode = (EMU_FAST_ROM | EMU_FRAME_SKIP | EMU_WAIT_SKIP | EMU_SND_FINE) & ~(uint32_t)menu.set.off;
     theme_apply();                            /* (no shade sent yet: every line pair is sent once) */
-    y0 = menu.set.bar ? Y0_BAR : Y0_FULL;     /* (the screen was cleared above) */
-    border_req = menu.set.bar ? 0 : 3u;
+    geometry_set();                           /* (the screen was cleared above) */
     lsdj_ring_init(&ring, ring_buf, RING_N);
     r = emu_init(rom_tab, cart.nbanks, sram, fb);
     emu.dirty = dirty;
@@ -649,6 +842,8 @@ static __attribute__((noinline)) void lsdj_start(void)
     }
     for (r = 0; r < 8; r++)
         pad_map[r] = KEYS[r] < 0 ? 0 : core_button_bit(KEYS[r]);
+    dpad = 1;                                 /* D-PAD at start (GLO: KEYBOARD) */
+    notes_mask = core_notes();                /* (keys held at start: nothing until let go) */
     st.start_ms = st.sec_ms = st.win_ms = core_ms();
     st.step_ticks = core_ticks();
     st.pad = 0xFF;
@@ -662,14 +857,15 @@ static __attribute__((noinline)) void lsdj_start(void)
     draw = lsdj_push;
     run = lsdj_step;
     xfer.started = 1;
+    dpad_leds();
 }
 
 /* ---- the core's hooks (named by the BLE test; see the top) ---- */
 void ble_key(uint32_t pressed_buttons, int32_t select_steps)
 {
     int32_t algo = core_enc_steps(CORE_ENC_ALGO), preset = core_enc_steps(CORE_ENC_PRESET);   /* (always taken) */
-    if (!run) {
-        if (!st.error && (pressed_buttons & core_play_bit()))
+    if (!run) {                               /* (called every pass: the start screen's time runs out here) */
+        if (!st.error && ((pressed_buttons & core_play_bit()) || (splash_done && core_ms() - splash_ms >= SPLASH_MS)))
             lsdj_start();
         return;
     }
@@ -686,7 +882,13 @@ void ble_key(uint32_t pressed_buttons, int32_t select_steps)
                 lsdj_knobs_add(&knobs, LSDJ_AX_NAV_UD, 1);
         }
     }
-    if (pressed_buttons & core_button_bit(CORE_BTN_GLO)) {        /* GLO: the menu (the emulator's options are in it) */
+    if (pressed_buttons & core_button_bit(CORE_BTN_GLO)) {        /* GLO: KEYBOARD <-> D-PAD */
+        dpad ^= 1u;
+        notes_mask = core_notes();
+        lsdj_note_for(dpad ? "D-PAD" : "KEYBOARD", 1000u);   /* (as OPLBend's: a second) */
+        dpad_leds();
+    }
+    if (pressed_buttons & core_button_bit(CORE_BTN_ENV)) {        /* ENV: the menu (the emulator's options are in it) */
         if (menu.open)
             menu_close();
         else
@@ -714,13 +916,15 @@ void ble_draw(void)
     if (splash_done || st.error)
         return;
     splash_done = 1;
+    splash_ms = core_ms();
     /* (before PLAY nothing reads the cartridge: gate 4. So both programs' keys) */
-    core_text(0, 144, 240, CORE_FONT_S, "PLAY: START, THEN PLAY: DEMO", CORE_THEME, CORE_BG, 1);
+    core_text(0, 128, 240, CORE_FONT_S, "STARTS IN 3 S (PLAY: AT ONCE)", CORE_THEME, CORE_BG, 1);
+    core_text(0, 144, 240, CORE_FONT_S, "GLO: KEYBOARD MODE   ENV: MENU", CORE_MID, CORE_BG, 1);
     core_text(0, 160, 240, CORE_FONT_S, "LEFT RIGHT: SELECT KNOB", CORE_MID, CORE_BG, 1);
     core_text(0, 176, 240, CORE_FONT_S, "UP DOWN: ALGORITHM KNOB  SEL: SEQ", CORE_MID, CORE_BG, 1);
-    core_text(0, 192, 240, CORE_FONT_S, "LSDJ  A: TOP F  B: TOP G", CORE_MID, CORE_BG, 1);
+    core_text(0, 192, 240, CORE_FONT_S, "D-PAD  A: F#5  B: F5  ARROWS: F3-A3", CORE_MID, CORE_BG, 1);
     core_text(0, 208, 240, CORE_FONT_S, "SCREENS: PRESETS, OCT- OCT+", CORE_MID, CORE_BG, 1);
-    core_text(0, 224, 240, CORE_FONT_S, "DMGO  A: D#5  B: F#5  STEPS: WHITE", CORE_MID, CORE_BG, 1);
+    core_text(0, 224, 240, CORE_FONT_S, "DMGO STEPS: WHITE KEYS (KEYBOARD)", CORE_MID, CORE_BG, 1);
 }
 
 static void lsdj_console(const char *args)     /* the words after `ble` on the console line: a transfer command */
